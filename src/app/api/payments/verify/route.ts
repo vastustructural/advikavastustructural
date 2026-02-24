@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
-import { prisma } from "@/lib/prisma";
+import { supabaseAdmin } from "@/lib/supabase";
 import { z } from "zod";
 
 const verifyPaymentSchema = z.object({
@@ -19,7 +19,6 @@ export async function POST(req: Request) {
         }
 
         const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = validation.data;
-
         const signBody = razorpay_order_id + "|" + razorpay_payment_id;
 
         const expectedSignature = crypto
@@ -30,34 +29,30 @@ export async function POST(req: Request) {
         const isAuthentic = expectedSignature === razorpay_signature;
 
         if (isAuthentic) {
-            // Update payment in database (Using model Payment)
-            await prisma.payment.update({
-                where: { razorpayOrderId: razorpay_order_id },
-                data: {
+            // Update payment in database
+            const { error: dbError } = await supabaseAdmin
+                .from("Payment")
+                .update({
                     razorpayPaymentId: razorpay_payment_id,
                     razorpaySignature: razorpay_signature,
                     status: "PAID",
-                },
-            });
+                })
+                .eq("razorpayOrderId", razorpay_order_id);
+
+            if (dbError) throw dbError;
 
             return NextResponse.json({ message: "Payment verified successfully" });
         } else {
-            // Update payment as failed if signature doesn't match
-            await prisma.payment.update({
-                where: { razorpayOrderId: razorpay_order_id },
-                data: {
-                    status: "FAILED",
-                },
-            });
+            // Update payment as failed
+            await supabaseAdmin
+                .from("Payment")
+                .update({ status: "FAILED" })
+                .eq("razorpayOrderId", razorpay_order_id);
+
             return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
         }
     } catch (error: any) {
-        console.error("Razorpay Verification Error:", {
-            message: error.message,
-            stack: error.stack,
-            error: error
-        });
-        // We still return 500 but log the detailed error
+        console.error("Razorpay Verification Error:", error);
         return NextResponse.json({ error: "Verification failed internally" }, { status: 500 });
     }
 }

@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { supabaseAdmin } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, apiError } from "@/lib/api-utils";
 import { getHomePageData } from "@/lib/data";
@@ -26,16 +26,16 @@ export async function PUT(req: NextRequest) {
         // Remove id and updatedAt from body
         const { id, updatedAt, ...updateData } = body;
 
-        // @ts-ignore
-        const homeData = await prisma.homePage.upsert({
-            where: { id: "singleton" },
-            update: updateData,
-            create: {
+        const { data: homeData, error } = await supabaseAdmin
+            .from("HomePage")
+            .upsert({
                 id: "singleton",
                 ...updateData
-            }
-        });
+            })
+            .select()
+            .single();
 
+        if (error) throw error;
         return NextResponse.json(homeData);
     } catch (error: any) {
         console.error("PUT /api/admin/home error detail:", error);

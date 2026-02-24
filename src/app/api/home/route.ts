@@ -1,4 +1,3 @@
-import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 import { apiError } from "@/lib/api-utils";
 import { getHomePageData } from "@/lib/data";

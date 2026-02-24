@@ -1,14 +1,17 @@
-import { prisma } from "@/lib/prisma";
+import { supabaseAdmin } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, validateFields, sanitizeObject, apiError, checkRateLimit, getClientIp } from "@/lib/api-utils";
+import { nanoid } from "nanoid";
 
 export async function GET() {
     try {
         const { authorized, errorResponse } = await requireAuth();
         if (!authorized) return errorResponse;
-        const submissions = await prisma.contactSubmission.findMany({ orderBy: { createdAt: "desc" } });
-        return NextResponse.json(submissions);
-    } catch {
+        const { data, error } = await supabaseAdmin.from("ContactSubmission").select("*").order("createdAt", { ascending: false });
+        if (error) throw error;
+        return NextResponse.json(data);
+    } catch (error) {
+        console.error("[Contact API] GET Error:", error);
         return apiError("Failed to fetch submissions");
     }
 }
@@ -24,17 +27,24 @@ export async function POST(req: NextRequest) {
         const { valid, errorResponse: ve } = validateFields(body, ["name", "email", "message"]);
         if (!valid) return ve;
         const sanitized = sanitizeObject(body, ["name", "email", "phone", "subject", "message"]);
-        const submission = await prisma.contactSubmission.create({
-            data: {
+
+        const { data: submission, error } = await supabaseAdmin
+            .from("ContactSubmission")
+            .insert({
+                id: nanoid(),
                 name: sanitized.name,
                 email: sanitized.email,
                 phone: sanitized.phone || "",
                 subject: sanitized.subject || "",
                 message: sanitized.message,
-            },
-        });
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
         return NextResponse.json(submission, { status: 201 });
-    } catch {
+    } catch (error) {
+        console.error("[Contact API] POST Error:", error);
         return apiError("Failed to submit contact form");
     }
 }

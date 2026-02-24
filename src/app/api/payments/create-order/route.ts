@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import Razorpay from "razorpay";
-import { prisma } from "@/lib/prisma";
+import { supabaseAdmin } from "@/lib/supabase";
 import { z } from "zod";
+import { nanoid } from "nanoid";
 
 const razorpay = new Razorpay({
     key_id: process.env.RAZORPAY_KEY_ID || "",
@@ -49,17 +50,22 @@ export async function POST(req: Request) {
         // Check for referral
         let referrerId = null;
         if (referralCode) {
-            const referrer = await prisma.referrer.findUnique({
-                where: { referralCode }
-            });
-            if (referrer) {
+            const { data: referrer, error: referrerError } = await supabaseAdmin
+                .from("Referrer")
+                .select("id")
+                .eq("referralCode", referralCode)
+                .single();
+
+            if (referrer && !referrerError) {
                 referrerId = referrer.id;
             }
         }
 
-        // Save payment record to database (Using model Payment)
-        await prisma.payment.create({
-            data: {
+        // Save payment record to database
+        const { error: dbError } = await supabaseAdmin
+            .from("Payment")
+            .insert({
+                id: nanoid(),
                 razorpayOrderId: order.id,
                 amount: amount,
                 currency,
@@ -67,19 +73,16 @@ export async function POST(req: Request) {
                 userEmail: userEmail || null,
                 userName: userName || null,
                 userPhone: userPhone || null,
-                planId,
-                productId,
-                referrerId
-            },
-        });
+                planId: planId || null,
+                productId: productId || null,
+                referrerId: referrerId
+            });
+
+        if (dbError) throw dbError;
 
         return NextResponse.json(order);
     } catch (error: any) {
-        console.error("Razorpay Order Creation Error:", {
-            message: error.message,
-            stack: error.stack,
-            error: error
-        });
+        console.error("Razorpay Order Creation Error:", error);
         return NextResponse.json({
             error: error.message || "Failed to create order",
             code: error.code || "ORDER_CREATION_FAILED"

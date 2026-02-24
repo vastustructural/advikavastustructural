@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { supabaseAdmin } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, sanitizeObject, apiError } from "@/lib/api-utils";
 
@@ -10,7 +10,6 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         const body = await req.json();
 
         const sanitized = sanitizeObject(body, ["title", "description", "price", "originalPrice", "sampleImageUrl", "icon"]);
-
         const updateData: Record<string, any> = {};
 
         if (sanitized.title !== undefined) {
@@ -30,10 +29,17 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         if (body.isVisible !== undefined) updateData.isVisible = body.isVisible;
         if (body.order !== undefined) updateData.order = body.order;
 
-        const service = await prisma.service.update({ where: { id }, data: updateData });
+        const { data: service, error } = await supabaseAdmin
+            .from("Service")
+            .update(updateData)
+            .eq("id", id)
+            .select()
+            .single();
+
+        if (error) throw error;
         return NextResponse.json(service);
     } catch (error) {
-        console.error("Error updating service:", error);
+        console.error("[Service ID API] PUT Error:", error);
         return apiError("Failed to update service");
     }
 }
@@ -43,9 +49,16 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
         const { authorized, errorResponse } = await requireAuth();
         if (!authorized) return errorResponse;
         const { id } = await params;
-        await prisma.service.delete({ where: { id } });
+
+        const { error } = await supabaseAdmin
+            .from("Service")
+            .delete()
+            .eq("id", id);
+
+        if (error) throw error;
         return NextResponse.json({ success: true });
-    } catch {
+    } catch (error) {
+        console.error("[Service ID API] DELETE Error:", error);
         return apiError("Failed to delete service");
     }
 }

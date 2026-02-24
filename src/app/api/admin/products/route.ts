@@ -1,14 +1,17 @@
-import { prisma } from "@/lib/prisma";
+import { supabaseAdmin } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, validateFields, sanitizeObject, apiError } from "@/lib/api-utils";
+import { nanoid } from "nanoid";
 
 export async function GET() {
     try {
         const { authorized, errorResponse } = await requireAuth();
         if (!authorized) return errorResponse;
-        const products = await prisma.product.findMany({ orderBy: { order: "asc" } });
-        return NextResponse.json(products);
-    } catch {
+        const { data, error } = await supabaseAdmin.from("Product").select("*").order("order", { ascending: true });
+        if (error) throw error;
+        return NextResponse.json(data);
+    } catch (error) {
+        console.error("[Products API] GET Error:", error);
         return apiError("Failed to fetch products");
     }
 }
@@ -21,8 +24,11 @@ export async function POST(req: NextRequest) {
         const { valid, errorResponse: ve } = validateFields(body, ["name"]);
         if (!valid) return ve;
         const sanitized = sanitizeObject(body, ["name", "description", "originalPrice"]);
-        const product = await prisma.product.create({
-            data: {
+
+        const { data: product, error } = await supabaseAdmin
+            .from("Product")
+            .insert({
+                id: nanoid(),
                 name: sanitized.name,
                 slug: sanitized.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""),
                 description: sanitized.description || "",
@@ -40,10 +46,14 @@ export async function POST(req: NextRequest) {
                 code: body.code || null,
                 order: body.order ?? 0,
                 isVisible: body.isVisible ?? true,
-            },
-        });
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
         return NextResponse.json(product, { status: 201 });
-    } catch {
+    } catch (error) {
+        console.error("[Products API] POST Error:", error);
         return apiError("Failed to create product");
     }
 }

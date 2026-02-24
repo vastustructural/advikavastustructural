@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { supabaseAdmin } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, apiError } from "@/lib/api-utils";
 
@@ -6,9 +6,11 @@ export async function GET() {
     try {
         const { authorized, errorResponse } = await requireAuth();
         if (!authorized) return errorResponse;
-        const pages = await prisma.legalPage.findMany();
-        return NextResponse.json(pages);
-    } catch {
+        const { data, error } = await supabaseAdmin.from("LegalPage").select("*");
+        if (error) throw error;
+        return NextResponse.json(data);
+    } catch (error) {
+        console.error("[Legal API] GET Error:", error);
         return apiError("Failed to fetch legal pages");
     }
 }
@@ -18,12 +20,18 @@ export async function PUT(req: NextRequest) {
         const { authorized, errorResponse } = await requireAuth();
         if (!authorized) return errorResponse;
         const body = await req.json();
-        const page = await prisma.legalPage.update({
-            where: { slug: body.slug },
-            data: { title: body.title, content: body.content },
-        });
-        return NextResponse.json(page);
-    } catch {
+
+        const { data, error } = await supabaseAdmin
+            .from("LegalPage")
+            .update({ title: body.title, content: body.content })
+            .eq("slug", body.slug)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return NextResponse.json(data);
+    } catch (error) {
+        console.error("[Legal API] PUT Error:", error);
         return apiError("Failed to update legal page");
     }
 }

@@ -1,12 +1,14 @@
 import { cache } from "react";
-import { prisma } from "./prisma";
+import { supabaseAdmin } from "./supabase";
 import { HomePageData, DEFAULT_HOME_DATA, NavLink, SocialLink } from "./types/home";
 
 // ─── Error Handler ─────────────────────────────────────
-/** Wraps a Prisma query with error handling, returning a fallback on failure. */
-async function safeQuery<T>(queryFn: () => Promise<T>, fallback: T, label: string): Promise<T> {
+/** Wraps a Supabase query with error handling, returning a fallback on failure. */
+async function safeQuery<T>(queryFn: () => Promise<{ data: T | null; error: any }>, fallback: T, label: string): Promise<T> {
     try {
-        return await queryFn();
+        const { data, error } = await queryFn();
+        if (error) throw error;
+        return (data as T) || fallback;
     } catch (error) {
         console.error(`[Data] Failed to fetch ${label}:`, error instanceof Error ? error.message : error);
         return fallback;
@@ -17,7 +19,7 @@ async function safeQuery<T>(queryFn: () => Promise<T>, fallback: T, label: strin
 /** Fetches all visible services ordered by display position. */
 export async function getServices() {
     return safeQuery(
-        () => prisma.service.findMany({ where: { isVisible: true }, orderBy: { order: "asc" } }),
+        async () => await supabaseAdmin.from("Service").select("*").eq("isVisible", true).order("order"),
         [],
         "services"
     );
@@ -26,7 +28,7 @@ export async function getServices() {
 /** Fetches all services (including hidden) for admin panel. */
 export async function getAllServices() {
     return safeQuery(
-        () => prisma.service.findMany({ orderBy: { order: "asc" } }),
+        async () => await supabaseAdmin.from("Service").select("*").order("order"),
         [],
         "all services"
     );
@@ -36,7 +38,7 @@ export async function getAllServices() {
 /** Fetches all visible plans ordered by display position. */
 export async function getPlans() {
     return safeQuery(
-        () => prisma.plan.findMany({ where: { isVisible: true }, orderBy: { order: "asc" } }),
+        async () => await supabaseAdmin.from("Plan").select("*").eq("isVisible", true).order("order"),
         [],
         "plans"
     );
@@ -45,7 +47,7 @@ export async function getPlans() {
 /** Fetches all plans (including hidden) for admin panel. */
 export async function getAllPlans() {
     return safeQuery(
-        () => prisma.plan.findMany({ orderBy: { order: "asc" } }),
+        async () => await supabaseAdmin.from("Plan").select("*").order("order"),
         [],
         "all plans"
     );
@@ -55,7 +57,7 @@ export async function getAllPlans() {
 /** Fetches all visible products ordered by display position. */
 export async function getProducts() {
     return safeQuery(
-        () => prisma.product.findMany({ where: { isVisible: true }, orderBy: { order: "asc" } }),
+        async () => await supabaseAdmin.from("Product").select("*").eq("isVisible", true).order("order"),
         [],
         "products"
     );
@@ -64,7 +66,7 @@ export async function getProducts() {
 /** Fetches all products (including hidden) for admin panel. */
 export async function getAllProducts() {
     return safeQuery(
-        () => prisma.product.findMany({ orderBy: { order: "asc" } }),
+        async () => await supabaseAdmin.from("Product").select("*").order("order"),
         [],
         "all products"
     );
@@ -74,10 +76,12 @@ export async function getAllProducts() {
 /** Fetches gallery categories with their visible items. */
 export async function getGalleryCategories() {
     return safeQuery(
-        () => prisma.galleryCategory.findMany({
-            include: { items: { where: { isVisible: true }, orderBy: { order: "asc" } } },
-            orderBy: { order: "asc" },
-        }),
+        async () => await supabaseAdmin
+            .from("GalleryCategory")
+            .select("*, items:GalleryItem(*)")
+            .eq("GalleryItem.isVisible", true)
+            .order("order")
+            .order("order", { foreignTable: "GalleryItem" }),
         [],
         "gallery categories"
     );
@@ -86,11 +90,11 @@ export async function getGalleryCategories() {
 /** Fetches all visible gallery items with their category. */
 export async function getGalleryItems() {
     return safeQuery(
-        () => prisma.galleryItem.findMany({
-            where: { isVisible: true },
-            include: { category: true },
-            orderBy: { order: "asc" },
-        }),
+        async () => await supabaseAdmin
+            .from("GalleryItem")
+            .select("*, category:GalleryCategory(*)")
+            .eq("isVisible", true)
+            .order("order"),
         [],
         "gallery items"
     );
@@ -99,10 +103,10 @@ export async function getGalleryItems() {
 /** Fetches all gallery items (including hidden) for admin panel. */
 export async function getAllGalleryItems() {
     return safeQuery(
-        () => prisma.galleryItem.findMany({
-            include: { category: true },
-            orderBy: { order: "asc" },
-        }),
+        async () => await supabaseAdmin
+            .from("GalleryItem")
+            .select("*, category:GalleryCategory(*)")
+            .order("order"),
         [],
         "all gallery items"
     );
@@ -112,7 +116,7 @@ export async function getAllGalleryItems() {
 /** Fetches all visible testimonials ordered by display position. */
 export async function getTestimonials() {
     return safeQuery(
-        () => prisma.testimonial.findMany({ where: { isVisible: true }, orderBy: { order: "asc" } }),
+        async () => await supabaseAdmin.from("Testimonial").select("*").eq("isVisible", true).order("order"),
         [],
         "testimonials"
     );
@@ -121,7 +125,7 @@ export async function getTestimonials() {
 /** Fetches all testimonials (including hidden) for admin panel. */
 export async function getAllTestimonials() {
     return safeQuery(
-        () => prisma.testimonial.findMany({ orderBy: { order: "asc" } }),
+        async () => await supabaseAdmin.from("Testimonial").select("*").order("order"),
         [],
         "all testimonials"
     );
@@ -131,7 +135,7 @@ export async function getAllTestimonials() {
 /** Fetches a single legal page by its slug. */
 export async function getLegalPage(slug: string): Promise<{ title: string; content: string; slug: string } | null> {
     return safeQuery(
-        () => prisma.legalPage.findUnique({ where: { slug } }),
+        async () => await supabaseAdmin.from("LegalPage").select("*").eq("slug", slug).single(),
         null,
         `legal page: ${slug}`
     );
@@ -140,7 +144,7 @@ export async function getLegalPage(slug: string): Promise<{ title: string; conte
 /** Fetches all legal pages for admin panel. */
 export async function getAllLegalPages(): Promise<Array<{ id: string; title: string; slug: string; updatedAt: Date }>> {
     return safeQuery(
-        () => prisma.legalPage.findMany(),
+        async () => await supabaseAdmin.from("LegalPage").select("*").order("updatedAt", { ascending: false }),
         [],
         "all legal pages"
     );
@@ -150,7 +154,7 @@ export async function getAllLegalPages(): Promise<Array<{ id: string; title: str
 /** Fetches all contact submissions, newest first. */
 export async function getContactSubmissions() {
     return safeQuery(
-        () => prisma.contactSubmission.findMany({ orderBy: { createdAt: "desc" } }),
+        async () => await supabaseAdmin.from("ContactSubmission").select("*").order("createdAt", { ascending: false }),
         [],
         "contact submissions"
     );
@@ -160,9 +164,11 @@ export async function getContactSubmissions() {
 /** Fetches all global settings as a key-value record. */
 export async function getSettings(): Promise<Record<string, any>> {
     try {
-        const rows = await prisma.globalSettings.findMany();
+        const { data, error } = await supabaseAdmin.from("GlobalSettings").select("*");
+        if (error) throw error;
+
         const settings: Record<string, any> = {};
-        for (const row of rows) {
+        for (const row of data || []) {
             settings[row.key] = row.value;
         }
         return settings;
@@ -175,8 +181,9 @@ export async function getSettings(): Promise<Record<string, any>> {
 /** Fetches a single setting value by key. */
 export async function getSetting(key: string) {
     try {
-        const row = await prisma.globalSettings.findUnique({ where: { key } });
-        return row?.value ?? null;
+        const { data, error } = await supabaseAdmin.from("GlobalSettings").select("value").eq("key", key).single();
+        if (error) throw error;
+        return data?.value ?? null;
     } catch (error) {
         console.error(`[Data] Failed to fetch setting "${key}":`, error instanceof Error ? error.message : error);
         return null;
@@ -187,7 +194,7 @@ export async function getSetting(key: string) {
 /** Fetches all visible calculators ordered by display position. */
 export async function getCalculators() {
     return safeQuery(
-        () => prisma.calculator.findMany({ where: { isVisible: true }, orderBy: { order: "asc" } }),
+        async () => await supabaseAdmin.from("Calculator").select("*").eq("isVisible", true).order("order"),
         [],
         "calculators"
     );
@@ -196,7 +203,7 @@ export async function getCalculators() {
 /** Fetches all calculators (including hidden) for admin panel. */
 export async function getAllCalculators() {
     return safeQuery(
-        () => prisma.calculator.findMany({ orderBy: { order: "asc" } }),
+        async () => await supabaseAdmin.from("Calculator").select("*").order("order"),
         [],
         "all calculators"
     );
@@ -206,7 +213,7 @@ export async function getAllCalculators() {
 /** Fetches all visible CTA sections ordered by display position. */
 export async function getCtaSections() {
     return safeQuery(
-        () => prisma.ctaSection.findMany({ where: { isVisible: true }, orderBy: { order: "asc" } }),
+        async () => await supabaseAdmin.from("CtaSection").select("*").eq("isVisible", true).order("order"),
         [],
         "CTA sections"
     );
@@ -215,7 +222,7 @@ export async function getCtaSections() {
 /** Fetches all CTA sections (including hidden) for admin panel. */
 export async function getAllCtaSections() {
     return safeQuery(
-        () => prisma.ctaSection.findMany({ orderBy: { order: "asc" } }),
+        async () => await supabaseAdmin.from("CtaSection").select("*").order("order"),
         [],
         "all CTA sections"
     );
@@ -225,11 +232,12 @@ export async function getAllCtaSections() {
 /** Fetches recent chat sessions with messages, limited by count. */
 export async function getChatSessions(limit: number = 50) {
     return safeQuery(
-        () => prisma.chatSession.findMany({
-            include: { messages: { orderBy: { createdAt: "asc" } } },
-            orderBy: { createdAt: "desc" },
-            take: limit,
-        }),
+        async () => await supabaseAdmin
+            .from("ChatSession")
+            .select("*, messages:ChatMessage(*)")
+            .order("createdAt", { ascending: false })
+            .limit(limit)
+            .order("createdAt", { foreignTable: "ChatMessage", ascending: true }),
         [],
         "chat sessions"
     );
@@ -238,10 +246,12 @@ export async function getChatSessions(limit: number = 50) {
 /** Fetches a single chat session by ID with all its messages. */
 export async function getChatSessionById(id: string) {
     return safeQuery(
-        () => prisma.chatSession.findUnique({
-            where: { id },
-            include: { messages: { orderBy: { createdAt: "asc" } } },
-        }),
+        async () => await supabaseAdmin
+            .from("ChatSession")
+            .select("*, messages:ChatMessage(*)")
+            .eq("id", id)
+            .order("createdAt", { foreignTable: "ChatMessage", ascending: true })
+            .single(),
         null,
         `chat session: ${id}`
     );
@@ -254,16 +264,26 @@ export async function getDashboardStats() {
     try {
         const [services, plans, products, gallery, testimonials, contacts, chatSessions, payments] =
             await Promise.all([
-                prisma.service.count(),
-                prisma.plan.count(),
-                prisma.product.count(),
-                prisma.galleryItem.count(),
-                prisma.testimonial.count(),
-                prisma.contactSubmission.count(),
-                prisma.chatSession.count(),
-                prisma.payment.count(),
+                supabaseAdmin.from("Service").select("*", { count: "exact", head: true }),
+                supabaseAdmin.from("Plan").select("*", { count: "exact", head: true }),
+                supabaseAdmin.from("Product").select("*", { count: "exact", head: true }),
+                supabaseAdmin.from("GalleryItem").select("*", { count: "exact", head: true }),
+                supabaseAdmin.from("Testimonial").select("*", { count: "exact", head: true }),
+                supabaseAdmin.from("ContactSubmission").select("*", { count: "exact", head: true }),
+                supabaseAdmin.from("ChatSession").select("*", { count: "exact", head: true }),
+                supabaseAdmin.from("Payment").select("*", { count: "exact", head: true }),
             ]);
-        return { services, plans, products, gallery, testimonials, contacts, chatSessions, payments };
+
+        return {
+            services: services.count || 0,
+            plans: plans.count || 0,
+            products: products.count || 0,
+            gallery: gallery.count || 0,
+            testimonials: testimonials.count || 0,
+            contacts: contacts.count || 0,
+            chatSessions: chatSessions.count || 0,
+            payments: payments.count || 0,
+        };
     } catch (error) {
         console.error("[Data] Failed to fetch dashboard stats:", error instanceof Error ? error.message : error);
         return defaultStats;
@@ -274,9 +294,15 @@ export async function getDashboardStats() {
 /** Fetches the singleton home page data, merging with defaults for missing fields. */
 export const getHomePageData = cache(async (): Promise<HomePageData> => {
     try {
-        const data = await (prisma as any).homePage.findUnique({
-            where: { id: "singleton" },
-        });
+        const { data, error } = await supabaseAdmin
+            .from("HomePage")
+            .select("*")
+            .eq("id", "singleton")
+            .single();
+
+        if (error && error.code !== "PGRST116") { // Ignore "no rows returned" error
+            throw error;
+        }
 
         return {
             ...DEFAULT_HOME_DATA,

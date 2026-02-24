@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import { prisma } from "@/lib/prisma";
+import { supabaseAdmin } from "@/lib/supabase";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
     secret: process.env.AUTH_SECRET,
@@ -20,11 +20,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 if (!email || !password) return null;
 
                 try {
-                    const admin = await prisma.adminUser.findUnique({
-                        where: { email },
-                    });
+                    const { data: admin, error } = await supabaseAdmin
+                        .from("AdminUser")
+                        .select("*")
+                        .eq("email", email)
+                        .single();
 
-                    if (!admin) return null;
+                    if (error || !admin) return null;
 
                     const isValid = await bcrypt.compare(password, admin.password);
                     if (!isValid) return null;

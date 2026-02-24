@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { supabaseAdmin } from "@/lib/supabase";
 import { NextResponse } from "next/server";
 import { apiError } from "@/lib/api-utils";
 
@@ -9,36 +9,35 @@ export async function GET(req: Request) {
         const status = searchParams.get("status");
         const search = searchParams.get("search");
 
-        const where: any = {};
+        let query = supabaseAdmin
+            .from("Payment")
+            .select("*, referrer:Referrer(name, phone, referralCode)");
+
         if (status && status !== "ALL") {
-            where.status = status;
-        }
-        if (search) {
-            where.OR = [
-                { userName: { contains: search, mode: "insensitive" } },
-                { userEmail: { contains: search, mode: "insensitive" } },
-                { userPhone: { contains: search, mode: "insensitive" } },
-                { razorpayOrderId: { contains: search, mode: "insensitive" } },
-                { razorpayPaymentId: { contains: search, mode: "insensitive" } },
-            ];
+            query = query.eq("status", status);
         }
 
-        const payments = await prisma.payment.findMany({
-            where,
-            include: {
-                referrer: { select: { name: true, phone: true, referralCode: true } },
-            },
-            orderBy: { createdAt: "desc" },
-        });
+        if (search) {
+            query = query.or(`userName.ilike.%${search}%,userEmail.ilike.%${search}%,userPhone.ilike.%${search}%,razorpayOrderId.ilike.%${search}%,razorpayPaymentId.ilike.%${search}%`);
+        }
+
+        const { data: payments, error } = await query.order("createdAt", { ascending: false });
+        if (error) throw error;
 
         // Summary stats
-        const allPayments = await prisma.payment.findMany();
-        const totalRevenue = allPayments
-            .filter((p: { status: string }) => p.status === "PAID")
-            .reduce((sum: number, p: { amount: number }) => sum + p.amount, 0);
-        const totalPaid = allPayments.filter((p: { status: string }) => p.status === "PAID").length;
-        const totalPending = allPayments.filter((p: { status: string }) => p.status === "PENDING").length;
-        const totalFailed = allPayments.filter((p: { status: string }) => p.status === "FAILED").length;
+        const { data: allPayments, error: statsError } = await supabaseAdmin
+            .from("Payment")
+            .select("status, amount");
+
+        if (statsError) throw statsError;
+
+        const totalRevenue = (allPayments || [])
+            .filter((p: any) => p.status === "PAID")
+            .reduce((sum: number, p: any) => sum + p.amount, 0);
+
+        const totalPaid = (allPayments || []).filter((p: any) => p.status === "PAID").length;
+        const totalPending = (allPayments || []).filter((p: any) => p.status === "PENDING").length;
+        const totalFailed = (allPayments || []).filter((p: any) => p.status === "FAILED").length;
 
         return NextResponse.json({
             payments,
@@ -47,11 +46,11 @@ export async function GET(req: Request) {
                 totalPaid,
                 totalPending,
                 totalFailed,
-                total: allPayments.length,
+                total: allPayments?.length || 0,
             },
         });
     } catch (error: any) {
-        console.error("Admin payments error:", error);
+        console.error("[Payments Admin API] GET Error:", error);
         return apiError("Failed to fetch payments");
     }
 }

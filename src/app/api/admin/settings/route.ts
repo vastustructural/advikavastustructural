@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { supabaseAdmin } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, apiError } from "@/lib/api-utils";
 
@@ -6,13 +6,20 @@ export async function GET() {
     try {
         const { authorized, errorResponse } = await requireAuth();
         if (!authorized) return errorResponse;
-        const rows = await prisma.globalSettings.findMany();
+
+        const { data: rows, error } = await supabaseAdmin
+            .from("GlobalSettings")
+            .select("*");
+
+        if (error) throw error;
+
         const settings: Record<string, any> = {};
-        for (const row of rows) {
+        for (const row of rows || []) {
             settings[row.key] = row.value;
         }
         return NextResponse.json(settings);
-    } catch {
+    } catch (error) {
+        console.error("[Settings API] GET Error:", error);
         return apiError("Failed to fetch settings");
     }
 }
@@ -22,17 +29,21 @@ export async function PUT(req: NextRequest) {
         const { authorized, errorResponse } = await requireAuth();
         if (!authorized) return errorResponse;
         const body = await req.json();
-        const results: any[] = [];
-        for (const [key, value] of Object.entries(body)) {
-            const result = await prisma.globalSettings.upsert({
-                where: { key },
-                update: { value: value as any },
-                create: { key, value: value as any },
-            });
-            results.push(result);
-        }
-        return NextResponse.json({ success: true, updated: results.length });
-    } catch {
+
+        const updates = Object.entries(body).map(([key, value]) => ({
+            key,
+            value: value as any
+        }));
+
+        const { data, error } = await supabaseAdmin
+            .from("GlobalSettings")
+            .upsert(updates)
+            .select();
+
+        if (error) throw error;
+        return NextResponse.json({ success: true, updated: data?.length || 0 });
+    } catch (error) {
+        console.error("[Settings API] PUT Error:", error);
         return apiError("Failed to update settings");
     }
 }

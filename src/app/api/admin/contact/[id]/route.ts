@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { supabaseAdmin } from "@/lib/supabase";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, apiError } from "@/lib/api-utils";
 
@@ -8,9 +8,18 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         if (!authorized) return errorResponse;
         const { id } = await params;
         const body = await req.json();
-        const submission = await prisma.contactSubmission.update({ where: { id }, data: { isRead: body.isRead ?? true } });
-        return NextResponse.json(submission);
-    } catch {
+
+        const { data, error } = await supabaseAdmin
+            .from("ContactSubmission")
+            .update({ isRead: body.isRead ?? true })
+            .eq("id", id)
+            .select()
+            .single();
+
+        if (error) throw error;
+        return NextResponse.json(data);
+    } catch (error) {
+        console.error("[Contact ID API] PUT Error:", error);
         return apiError("Failed to update submission");
     }
 }
@@ -20,9 +29,16 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
         const { authorized, errorResponse } = await requireAuth();
         if (!authorized) return errorResponse;
         const { id } = await params;
-        await prisma.contactSubmission.delete({ where: { id } });
+
+        const { error } = await supabaseAdmin
+            .from("ContactSubmission")
+            .delete()
+            .eq("id", id);
+
+        if (error) throw error;
         return NextResponse.json({ success: true });
-    } catch {
+    } catch (error) {
+        console.error("[Contact ID API] DELETE Error:", error);
         return apiError("Failed to delete submission");
     }
 }
