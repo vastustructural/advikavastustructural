@@ -20,6 +20,7 @@ interface Payment {
     userName: string | null;
     userEmail: string | null;
     userPhone: string | null;
+    requirements?: string | null;
     planId: string | null;
     productId: string | null;
     referrer: { name: string; phone: string; referralCode: string } | null;
@@ -224,6 +225,13 @@ export default function AdminPaymentsPage() {
                                         {payment.referrer && (
                                             <div className="mt-2 text-xs text-gray-400">
                                                 Referred by: <span className="font-medium text-gray-600">{payment.referrer.name}</span> ({payment.referrer.referralCode})
+                                            </div>
+                                        )}
+
+                                        {payment.requirements && (
+                                            <div className="mt-3 p-3 bg-blue-50/50 rounded-lg border border-blue-100/50 text-sm text-gray-700">
+                                                <span className="font-semibold text-blue-900/80 text-[10px] uppercase tracking-wider mb-1 block">Project Requirements</span>
+                                                <p className="whitespace-pre-wrap leading-relaxed">{payment.requirements}</p>
                                             </div>
                                         )}
                                     </div>

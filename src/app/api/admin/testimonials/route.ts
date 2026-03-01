@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabase";
+import { adminDb } from "@/lib/firebase-admin";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, validateFields, sanitizeObject, apiError } from "@/lib/api-utils";
 import { nanoid } from "nanoid";
@@ -7,8 +7,9 @@ export async function GET() {
     try {
         const { authorized, errorResponse } = await requireAuth();
         if (!authorized) return errorResponse;
-        const { data, error } = await supabaseAdmin.from("Testimonial").select("*").order("order", { ascending: true });
-        if (error) throw error;
+
+        const snapshot = await adminDb.collection("Testimonial").orderBy("order", "asc").get();
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         return NextResponse.json(data);
     } catch (error) {
         console.error("[Testimonials API] GET Error:", error);
@@ -25,24 +26,22 @@ export async function POST(req: NextRequest) {
         if (!valid) return ve;
         const sanitized = sanitizeObject(body, ["name", "content", "role", "company"]);
 
-        const { data: testimonial, error } = await supabaseAdmin
-            .from("Testimonial")
-            .insert({
-                id: nanoid(),
-                name: sanitized.name,
-                role: sanitized.role || "",
-                company: sanitized.company || "",
-                content: sanitized.content,
-                rating: body.rating ?? 5,
-                imageUrl: body.imageUrl || "",
-                order: body.order ?? 0,
-                isVisible: body.isVisible ?? true,
-            })
-            .select()
-            .single();
+        const newId = nanoid();
+        const testimonialData = {
+            id: newId,
+            name: sanitized.name,
+            role: sanitized.role || "",
+            company: sanitized.company || "",
+            content: sanitized.content,
+            rating: body.rating ?? 5,
+            imageUrl: body.imageUrl || "",
+            order: body.order ?? 0,
+            isVisible: body.isVisible ?? true,
+        };
 
-        if (error) throw error;
-        return NextResponse.json(testimonial, { status: 201 });
+        await adminDb.collection("Testimonial").doc(newId).set(testimonialData);
+
+        return NextResponse.json(testimonialData, { status: 201 });
     } catch (error) {
         console.error("[Testimonials API] POST Error:", error);
         return apiError("Failed to create testimonial");

@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabase";
+import { adminDb } from "@/lib/firebase-admin";
 import { NextRequest, NextResponse } from "next/server";
 import { apiError, checkRateLimit, getClientIp } from "@/lib/api-utils";
 import { nanoid } from "nanoid";
@@ -17,19 +17,16 @@ export async function POST(req: NextRequest) {
 
         // ─── Create Session ───────────────────────────
         if (action === "create-session") {
-            const { data, error } = await supabaseAdmin
-                .from("ChatSession")
-                .insert({
-                    id: nanoid(),
-                    ipAddress: ip,
-                    guestName: guestName || null,
-                    phone: phone || null,
-                })
-                .select()
-                .single();
+            const newId = nanoid();
+            await adminDb.collection("ChatSession").doc(newId).set({
+                id: newId,
+                ipAddress: ip,
+                guestName: guestName || null,
+                phone: phone || null,
+                createdAt: new Date().toISOString()
+            });
 
-            if (error) throw error;
-            return NextResponse.json({ sessionId: data.id });
+            return NextResponse.json({ sessionId: newId });
         }
 
         // ─── Store Message ────────────────────────────
@@ -37,29 +34,30 @@ export async function POST(req: NextRequest) {
             if (!sessionId || !role || !content) {
                 return apiError("sessionId, role, and content are required", 400);
             }
-            const { error } = await supabaseAdmin
-                .from("ChatMessage")
-                .insert({
-                    id: nanoid(),
-                    sessionId,
-                    role,
-                    content
-                });
+            const newId = nanoid();
+            await adminDb.collection("ChatMessage").doc(newId).set({
+                id: newId,
+                sessionId,
+                role,
+                content,
+                createdAt: new Date().toISOString()
+            });
 
-            if (error) throw error;
             return NextResponse.json({ success: true });
         }
 
         // ─── Get History ──────────────────────────────
         if (action === "get-history") {
             if (!sessionId) return apiError("sessionId is required", 400);
-            const { data, error } = await supabaseAdmin
-                .from("ChatMessage")
-                .select("*")
-                .eq("sessionId", sessionId)
-                .order("createdAt", { ascending: true });
 
-            if (error) throw error;
+            const snapshot = await adminDb.collection("ChatMessage")
+                .where("sessionId", "==", sessionId)
+                .get();
+
+            const data = snapshot.docs
+                .map(doc => ({ id: doc.id, ...doc.data() } as any))
+                .sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+
             return NextResponse.json({ messages: data });
         }
 

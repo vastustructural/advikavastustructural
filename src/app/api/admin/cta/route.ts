@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabase";
+import { adminDb } from "@/lib/firebase-admin";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, apiError } from "@/lib/api-utils";
 import { nanoid } from "nanoid";
@@ -7,8 +7,9 @@ export async function GET() {
     try {
         const { authorized, errorResponse } = await requireAuth();
         if (!authorized) return errorResponse;
-        const { data, error } = await supabaseAdmin.from("CTASection").select("*").order("order", { ascending: true });
-        if (error) throw error;
+
+        const snapshot = await adminDb.collection("CTASection").orderBy("order", "asc").get();
+        const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         return NextResponse.json(data);
     } catch (error) {
         console.error("[CTA API] GET Error:", error);
@@ -26,29 +27,27 @@ export async function PUT(req: NextRequest) {
 
         if (!targetId) {
             // Find first CTA section if no ID provided
-            const { data: existing } = await supabaseAdmin.from("CTASection").select("id").limit(1).maybeSingle();
-            if (existing) {
-                targetId = existing.id;
+            const snapshot = await adminDb.collection("CTASection").limit(1).get();
+            if (!snapshot.empty) {
+                targetId = snapshot.docs[0].id;
             } else {
                 targetId = nanoid();
             }
         }
 
-        const { data: section, error } = await supabaseAdmin
-            .from("CTASection")
-            .upsert({
-                id: targetId,
-                headline: body.headline || "Get Your Dream Project Started",
-                subtext: body.subtext || "",
-                buttonText: body.buttonText || "Get Started",
-                buttonUrl: body.buttonUrl || "/contact",
-                isVisible: body.isVisible ?? true,
-            })
-            .select()
-            .single();
+        const sectionData = {
+            id: targetId,
+            headline: body.headline || "Get Your Dream Project Started",
+            subtext: body.subtext || "",
+            buttonText: body.buttonText || "Get Started",
+            buttonUrl: body.buttonUrl || "/contact",
+            isVisible: body.isVisible ?? true,
+        };
 
-        if (error) throw error;
-        return NextResponse.json(section);
+        await adminDb.collection("CTASection").doc(targetId).set(sectionData, { merge: true });
+
+        const doc = await adminDb.collection("CTASection").doc(targetId).get();
+        return NextResponse.json(doc.data());
     } catch (error) {
         console.error("[CTA API] PUT Error:", error);
         return apiError("Failed to update CTA section");

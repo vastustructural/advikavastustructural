@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabase";
+import { adminDb } from "@/lib/firebase-admin";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, apiError } from "@/lib/api-utils";
 
@@ -7,15 +7,14 @@ export async function GET() {
         const { authorized, errorResponse } = await requireAuth();
         if (!authorized) return errorResponse;
 
-        const { data: rows, error } = await supabaseAdmin
-            .from("GlobalSettings")
-            .select("*");
-
-        if (error) throw error;
+        const snapshot = await adminDb.collection("GlobalSettings").get();
 
         const settings: Record<string, any> = {};
-        for (const row of rows || []) {
-            settings[row.key] = row.value;
+        for (const doc of snapshot.docs) {
+            const data = doc.data();
+            // Try to match the schema. Either docId is the key or a 'key' field exists.
+            const key = data.key || doc.id;
+            settings[key] = data.value;
         }
         return NextResponse.json(settings);
     } catch (error) {
@@ -30,18 +29,18 @@ export async function PUT(req: NextRequest) {
         if (!authorized) return errorResponse;
         const body = await req.json();
 
-        const updates = Object.entries(body).map(([key, value]) => ({
-            key,
-            value: value as any
-        }));
+        const batch = adminDb.batch();
+        let count = 0;
 
-        const { data, error } = await supabaseAdmin
-            .from("GlobalSettings")
-            .upsert(updates)
-            .select();
+        for (const [key, value] of Object.entries(body)) {
+            const docRef = adminDb.collection("GlobalSettings").doc(key);
+            batch.set(docRef, { key, value }, { merge: true });
+            count++;
+        }
 
-        if (error) throw error;
-        return NextResponse.json({ success: true, updated: data?.length || 0 });
+        await batch.commit();
+
+        return NextResponse.json({ success: true, updated: count });
     } catch (error) {
         console.error("[Settings API] PUT Error:", error);
         return apiError("Failed to update settings");

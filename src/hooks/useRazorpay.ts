@@ -4,6 +4,17 @@ import { useState, useCallback } from "react";
 import { toast } from "sonner";
 import Cookies from "js-cookie";
 
+interface RazorpayResponse {
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+}
+
+interface RazorpayError {
+    description: string;
+    [key: string]: unknown;
+}
+
 interface RazorpayOptions {
     amount: string | number;
     planId?: string;
@@ -11,9 +22,10 @@ interface RazorpayOptions {
     name?: string;
     email?: string;
     phone?: string;
+    requirements?: string;
     description?: string;
-    onSuccess?: (response: any) => void;
-    onError?: (error: any) => void;
+    onSuccess?: (response: RazorpayResponse) => void;
+    onError?: (error: RazorpayError | Error) => void;
 }
 
 export const useRazorpay = () => {
@@ -21,7 +33,7 @@ export const useRazorpay = () => {
 
     const loadRazorpayScript = useCallback(() => {
         return new Promise((resolve) => {
-            if (typeof window !== "undefined" && (window as any).Razorpay) {
+            if (typeof window !== "undefined" && (window as unknown as { Razorpay: unknown }).Razorpay) {
                 resolve(true);
                 return;
             }
@@ -41,6 +53,7 @@ export const useRazorpay = () => {
         name,
         email,
         phone,
+        requirements,
         description = "Payment for architectural services",
         onSuccess,
         onError,
@@ -90,6 +103,7 @@ export const useRazorpay = () => {
                     userEmail: email,
                     userName: name,
                     userPhone: phone,
+                    requirements,
                     referralCode: referralCode || undefined,
                 }),
             });
@@ -110,7 +124,7 @@ export const useRazorpay = () => {
                 description,
                 image: "/favicon.ico", // Optional: link to your logo
                 order_id: orderData.id,
-                handler: async function (response: any) {
+                handler: async function (response: RazorpayResponse) {
                     toast.loading("Verifying payment...", { id: toastId });
 
                     try {
@@ -128,13 +142,14 @@ export const useRazorpay = () => {
 
                         if (verifyRes.ok) {
                             toast.success("Payment Received! Thank you for choosing Advika Vastu.", { id: toastId, duration: 5000 });
-                            if (onSuccess) onSuccess(verifyData);
+                            if (onSuccess) onSuccess(response);
                         } else {
                             throw new Error(verifyData.error || "Payment verification failed.");
                         }
-                    } catch (err: any) {
-                        toast.error(err.message, { id: toastId });
-                        if (onError) onError(err);
+                    } catch (err: unknown) {
+                        const message = err instanceof Error ? err.message : "Payment verification failed";
+                        toast.error(message, { id: toastId });
+                        if (onError) onError(err as Error);
                     }
                 },
                 prefill: {
@@ -157,16 +172,18 @@ export const useRazorpay = () => {
                 }
             };
 
-            const rzp = new (window as any).Razorpay(options);
-            rzp.on("payment.failed", function (response: any) {
+            const RazorpayClass = (window as unknown as { Razorpay: any }).Razorpay;
+            const rzp = new RazorpayClass(options);
+            rzp.on("payment.failed", function (response: { error: RazorpayError }) {
                 toast.error(response.error.description, { id: toastId });
                 if (onError) onError(response.error);
             });
             rzp.open();
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error("Payment Gateway Error:", error);
-            toast.error(error.message || "An unexpected error occurred. Please try again.", { id: toastId });
-            if (onError) onError(error);
+            const message = error instanceof Error ? error.message : "An unexpected error occurred.";
+            toast.error(message, { id: toastId });
+            if (onError) onError(error as Error);
             setLoading(false);
         }
     };

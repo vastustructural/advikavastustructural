@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
-import { supabaseAdmin } from "@/lib/supabase";
+import { adminDb } from "@/lib/firebase-admin";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
     secret: process.env.AUTH_SECRET,
@@ -20,24 +20,29 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 if (!email || !password) return null;
 
                 try {
-                    const { data: admin, error } = await supabaseAdmin
-                        .from("AdminUser")
-                        .select("*")
-                        .eq("email", email)
-                        .single();
+                    const adminUsersRef = adminDb.collection("AdminUser");
+                    const snapshot = await adminUsersRef
+                        .where("email", "==", email)
+                        .where("role", "==", "super_admin")
+                        .limit(1)
+                        .get();
 
-                    if (error || !admin) return null;
+                    if (snapshot.empty) return null;
+
+                    const adminDoc = snapshot.docs[0];
+                    const admin = adminDoc.data();
 
                     const isValid = await bcrypt.compare(password, admin.password);
                     if (!isValid) return null;
 
                     return {
-                        id: admin.id,
+                        id: adminDoc.id,
                         name: admin.name,
                         email: admin.email,
                         role: admin.role,
                     };
-                } catch {
+                } catch (error) {
+                    console.error("Auth error:", error);
                     return null;
                 }
             },

@@ -17,6 +17,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { toast } from "sonner"; // Added for toast notifications
 
 const fadeInUp = { initial: { opacity: 0, y: 30 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.5 } };
 const stagger = { animate: { transition: { staggerChildren: 0.08 } } };
@@ -104,7 +105,12 @@ export default function ShopContent({ products }: { products: Product[] }) {
         if (filters.designCode) params.set("code", filters.designCode);
 
         const query = params.toString();
-        router.replace(`${pathname}${query ? `?${query}` : ""}`, { scroll: false });
+        // Always replace URL to ensure empty state removes old query params cleanly
+        if (query) {
+            router.replace(`${pathname}?${query}`, { scroll: false });
+        } else {
+            router.replace(pathname, { scroll: false });
+        }
     }, [debouncedSearch, sortBy, filters, pathname, router]);
 
     const allCategories = useMemo(() => Array.from(new Set(products.map((p) => p.category).filter(Boolean))), [products]) as string[];
@@ -157,10 +163,22 @@ export default function ShopContent({ products }: { products: Product[] }) {
             })
             .sort((a, b) => {
                 switch (sortBy) {
-                    case "price-low":
-                        return parsePrice(a.price) - parsePrice(b.price);
-                    case "price-high":
-                        return (parsePrice(b.price) === Infinity ? -1 : parsePrice(b.price)) - (parsePrice(a.price) === Infinity ? -1 : parsePrice(a.price));
+                    case "price-low": {
+                        const pa = parsePrice(a.price);
+                        const pb = parsePrice(b.price);
+                        if (pa === pb) return 0;
+                        return pa < pb ? -1 : 1;
+                    }
+                    case "price-high": {
+                        const pa = parsePrice(a.price);
+                        const pb = parsePrice(b.price);
+                        // Treat Infinity ("Contact") as always at the bottom if high-to-low
+                        if (pa === Infinity && pb === Infinity) return 0;
+                        if (pa === Infinity) return 1;
+                        if (pb === Infinity) return -1;
+                        if (pa === pb) return 0;
+                        return pa > pb ? -1 : 1;
+                    }
                     case "name":
                         return a.name.localeCompare(b.name);
                     default:
@@ -183,6 +201,8 @@ export default function ShopContent({ products }: { products: Product[] }) {
             vastu: "Doesn't Matter", widthMin: "", widthMax: "", depthMin: "", depthMax: "", designCode: "", standardSize: "",
         });
         setSearch("");
+        setDebouncedSearch("");
+        router.replace(pathname, { scroll: false });
     };
 
     const handlePurchase = (product: Product) => {
@@ -208,11 +228,15 @@ export default function ShopContent({ products }: { products: Product[] }) {
             email: buyerEmail,
             phone: buyerPhone,
             description: `Purchase for ${checkoutProduct.name}`,
+            onSuccess: (response: any) => {
+                toast.success("Payment Received Successfully!");
+                router.push(`/thank-you?order_id=${response.razorpay_order_id || "ADV-SHP"}`);
+            },
         });
         setCheckoutProduct(null);
     };
 
-    const FilterContent = () => (
+    const renderFilterContent = () => (
         <div className="space-y-8">
             {/* Categories */}
             <div className="space-y-4">
@@ -387,7 +411,7 @@ export default function ShopContent({ products }: { products: Product[] }) {
                             )}
                         </div>
                         <div className="bg-white rounded-3xl border border-navy-primary/5 shadow-sm overflow-hidden p-6">
-                            <FilterContent />
+                            {renderFilterContent()}
                         </div>
                     </aside>
 
@@ -407,7 +431,7 @@ export default function ShopContent({ products }: { products: Product[] }) {
                                     </SheetTitle>
                                     <SheetDescription>Refine your search to find the perfect architectural plan.</SheetDescription>
                                 </SheetHeader>
-                                <FilterContent />
+                                {renderFilterContent()}
                                 <div className="mt-8 pt-6 border-t">
                                     <Button onClick={clearFilters} className="w-full h-12 rounded-2xl bg-navy-dark text-white font-bold">Clear All Filters</Button>
                                     <SheetTrigger asChild>
@@ -474,11 +498,11 @@ export default function ShopContent({ products }: { products: Product[] }) {
                             </div>
                         )}
 
-                        <AnimatePresence mode="popLayout">
+                        <div className="min-h-[600px]">
                             {filteredAndSorted.length > 0 ? (
-                                <motion.div initial="initial" animate="animate" variants={stagger} className="grid sm:grid-cols-2 xl:grid-cols-3 gap-8">
+                                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }} className="grid sm:grid-cols-2 xl:grid-cols-3 gap-8">
                                     {filteredAndSorted.map((product) => (
-                                        <motion.div key={product.id} layout variants={fadeInUp}>
+                                        <div key={product.id}>
                                             <Card className="group h-full border border-navy-primary/5 shadow-md hover:shadow-2xl transition-all duration-500 bg-white overflow-hidden rounded-[2.5rem] flex flex-col relative">
                                                 {product.originalPrice && Number(product.originalPrice) > Number(product.price) && (
                                                     <div className="absolute top-6 right-6 z-10">
@@ -499,81 +523,11 @@ export default function ShopContent({ products }: { products: Product[] }) {
                                                     </div>
 
                                                     <div className="absolute inset-0 bg-navy-dark/60 opacity-0 group-hover:opacity-100 transition-all duration-500 flex items-center justify-center backdrop-blur-sm">
-                                                        <Dialog>
-                                                            <DialogTrigger asChild>
-                                                                <Button size="lg" className="gold-gradient text-navy-primary font-bold rounded-2xl shadow-xl transform translate-y-4 group-hover:translate-y-0 transition-all duration-500 h-12">
-                                                                    <Eye className="w-5 h-5 mr-3" /> Quick View
-                                                                </Button>
-                                                            </DialogTrigger>
-                                                            <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden rounded-[2.5rem] p-0 bg-white shadow-3xl border-0">
-                                                                <div className="grid md:grid-cols-2 h-full max-h-[90vh]">
-                                                                    {/* Left — Image + Specs */}
-                                                                    <div className="bg-slate-50 border-r border-navy-primary/5 flex flex-col items-center justify-center p-8 md:p-10 relative overflow-hidden h-[40vh] md:h-auto">
-                                                                        <div className="absolute inset-0 bg-gradient-to-br from-navy-primary/5 to-gold-accent/10 opacity-50" />
-                                                                        <div className="relative z-10 w-full flex items-center justify-center flex-1">
-                                                                            {product.imageUrl ? (
-                                                                                <img src={product.imageUrl} alt={product.name} className="w-full h-full max-h-[320px] object-contain drop-shadow-xl" />
-                                                                            ) : (
-                                                                                <span className="text-9xl opacity-30 drop-shadow-md">🏠</span>
-                                                                            )}
-                                                                        </div>
-                                                                        <div className="grid grid-cols-2 gap-3 w-full relative z-10 mt-6 shrink-0">
-                                                                            <div className="p-3 bg-white/90 backdrop-blur-md rounded-2xl border border-navy-primary/5 shadow-sm">
-                                                                                <p className="text-[10px] uppercase font-bold text-navy-primary/40 mb-0.5 tracking-widest">Plot Size</p>
-                                                                                <p className="font-black text-navy-dark text-sm">{product.width && product.depth ? `${product.width}×${product.depth} ft` : product.area}</p>
-                                                                            </div>
-                                                                            <div className="p-3 bg-white/90 backdrop-blur-md rounded-2xl border border-navy-primary/5 shadow-sm">
-                                                                                <p className="text-[10px] uppercase font-bold text-navy-primary/40 mb-0.5 tracking-widest">Direction</p>
-                                                                                <p className="font-black text-navy-dark text-sm">{product.direction || "East"}</p>
-                                                                            </div>
-                                                                        </div>
-                                                                    </div>
-
-                                                                    {/* Right — Details + Buy */}
-                                                                    <div className="p-8 md:p-10 flex flex-col overflow-y-auto max-h-[50vh] md:max-h-[90vh] custom-scrollbar">
-                                                                        <div className="flex justify-between items-start mb-6 gap-3">
-                                                                            <div>
-                                                                                <Badge className="mb-3 bg-navy-primary/5 text-navy-primary border-0 text-xs font-black uppercase tracking-widest">{product.category}</Badge>
-                                                                                <DialogTitle className="text-3xl font-black text-navy-dark leading-tight tracking-tight">{product.name}</DialogTitle>
-                                                                            </div>
-                                                                            {product.code && (
-                                                                                <span className="font-mono text-[10px] font-bold text-navy-primary/40 bg-navy-primary/5 px-2.5 py-1.5 rounded-xl shrink-0 border border-navy-primary/10">{product.code}</span>
-                                                                            )}
-                                                                        </div>
-                                                                        <DialogDescription className="text-sm font-medium text-navy-dark/70 leading-relaxed mb-8">
-                                                                            {product.description || "A high-quality architectural design optimized for space and Vastu compliance. Perfect for modern living."}
-                                                                        </DialogDescription>
-                                                                        <div className="grid grid-cols-3 gap-3 mb-8">
-                                                                            <div className="text-center p-3 rounded-2xl bg-cream-bg/50 border border-navy-primary/5">
-                                                                                <span className="text-[10px] uppercase font-black text-navy-primary/40 block mb-1 tracking-widest">Floors</span>
-                                                                                <span className="font-black text-navy-dark text-base">{product.floors || "1"}</span>
-                                                                            </div>
-                                                                            <div className="text-center p-3 rounded-2xl bg-cream-bg/50 border border-navy-primary/5">
-                                                                                <span className="text-[10px] uppercase font-black text-sky-primary/60 block mb-1 tracking-widest">Unit</span>
-                                                                                <span className="font-black text-sky-primary text-base">{product.bhk || "2BHK"}</span>
-                                                                            </div>
-                                                                            <div className="text-center p-3 rounded-2xl bg-cream-bg/50 border border-navy-primary/5">
-                                                                                <span className="text-[10px] uppercase font-black text-gold-accent/80 block mb-1 tracking-widest">Vastu</span>
-                                                                                <span className="font-bold text-navy-dark text-base">{product.vastu === "Yes" ? "✅" : "❌"}</span>
-                                                                            </div>
-                                                                        </div>
-                                                                        <div className="mt-auto bg-navy-primary/[0.03] p-6 rounded-3xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-navy-primary/10">
-                                                                            <div>
-                                                                                <p className="text-[10px] uppercase font-black text-navy-primary/50 mb-1 tracking-widest">Full Plan Access</p>
-                                                                                <div className="flex items-baseline gap-2">
-                                                                                    <span className="text-3xl font-black text-navy-dark tracking-tight">{formatPrice(product.price)}</span>
-                                                                                    {product.originalPrice && <span className="text-sm font-bold text-navy-primary/30 line-through decoration-2">₹{Number(product.originalPrice).toLocaleString("en-IN")}</span>}
-                                                                                </div>
-                                                                            </div>
-                                                                            <Button onClick={() => handlePurchase(product)} disabled={loading} size="lg" className="gold-gradient w-full sm:w-auto text-navy-primary font-black rounded-2xl shadow-xl hover:shadow-2xl hover:-translate-y-0.5 transition-all px-8 h-14 shrink-0 text-base">
-                                                                                {loading ? <Loader2 className="w-5 h-5 animate-spin mr-2" /> : <ShoppingBag className="w-5 h-5 mr-3" />}
-                                                                                Buy Now
-                                                                            </Button>
-                                                                        </div>
-                                                                    </div>
-                                                                </div>
-                                                            </DialogContent>
-                                                        </Dialog>
+                                                        <Link href={`/shop/${product.id}`}>
+                                                            <Button size="lg" className="gold-gradient text-navy-primary font-bold rounded-2xl shadow-xl transform translate-y-4 group-hover:translate-y-0 transition-all duration-500 h-12">
+                                                                <Eye className="w-5 h-5 mr-3" /> View Details
+                                                            </Button>
+                                                        </Link>
                                                     </div>
                                                 </div>
 
@@ -609,7 +563,7 @@ export default function ShopContent({ products }: { products: Product[] }) {
                                                     </div>
                                                 </CardContent>
                                             </Card>
-                                        </motion.div>
+                                        </div>
                                     ))}
                                 </motion.div>
                             ) : (
@@ -622,7 +576,7 @@ export default function ShopContent({ products }: { products: Product[] }) {
                                     <Button size="lg" onClick={clearFilters} className="rounded-2xl px-12 bg-navy-dark text-white font-bold h-14 shadow-xl">Reset All Filters</Button>
                                 </motion.div>
                             )}
-                        </AnimatePresence>
+                        </div>
                     </main>
                 </div>
             </div>

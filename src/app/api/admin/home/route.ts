@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabase";
+import { adminDb } from "@/lib/firebase-admin";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, apiError } from "@/lib/api-utils";
 import { getHomePageData } from "@/lib/data";
@@ -26,17 +26,12 @@ export async function PUT(req: NextRequest) {
         // Remove id and updatedAt from body
         const { id, updatedAt, ...updateData } = body;
 
-        const { data: homeData, error } = await supabaseAdmin
-            .from("HomePage")
-            .upsert({
-                id: "singleton",
-                ...updateData
-            })
-            .select()
-            .single();
+        await adminDb.collection("HomePage").doc("singleton").set({
+            ...updateData
+        }, { merge: true });
 
-        if (error) throw error;
-        return NextResponse.json(homeData);
+        const doc = await adminDb.collection("HomePage").doc("singleton").get();
+        return NextResponse.json({ id: "singleton", ...doc.data() });
     } catch (error: any) {
         console.error("PUT /api/admin/home error detail:", error);
         return apiError(error.message || "Failed to update home page data");

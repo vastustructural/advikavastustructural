@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
-import { supabaseAdmin } from "@/lib/supabase";
+import { adminDb } from "@/lib/firebase-admin";
 import { z } from "zod";
 
 const verifyPaymentSchema = z.object({
@@ -30,24 +30,24 @@ export async function POST(req: Request) {
 
         if (isAuthentic) {
             // Update payment in database
-            const { error: dbError } = await supabaseAdmin
-                .from("Payment")
-                .update({
+            const paymentSnap = await adminDb.collection("Payment").where("razorpayOrderId", "==", razorpay_order_id).limit(1).get();
+
+            if (!paymentSnap.empty) {
+                await adminDb.collection("Payment").doc(paymentSnap.docs[0].id).update({
                     razorpayPaymentId: razorpay_payment_id,
                     razorpaySignature: razorpay_signature,
                     status: "PAID",
-                })
-                .eq("razorpayOrderId", razorpay_order_id);
-
-            if (dbError) throw dbError;
+                });
+            }
 
             return NextResponse.json({ message: "Payment verified successfully" });
         } else {
             // Update payment as failed
-            await supabaseAdmin
-                .from("Payment")
-                .update({ status: "FAILED" })
-                .eq("razorpayOrderId", razorpay_order_id);
+            const paymentSnap = await adminDb.collection("Payment").where("razorpayOrderId", "==", razorpay_order_id).limit(1).get();
+
+            if (!paymentSnap.empty) {
+                await adminDb.collection("Payment").doc(paymentSnap.docs[0].id).update({ status: "FAILED" });
+            }
 
             return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
         }

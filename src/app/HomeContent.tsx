@@ -149,16 +149,40 @@ export default function HomeContent({ services, plans, testimonials, settings, c
     return (
         <>
             {/* ─── HERO ─── */}
-            <section className="relative min-h-[85vh] flex items-center brand-gradient text-white overflow-hidden">
-                <div className="absolute inset-0">
-                    <div className="absolute top-20 left-10 w-72 h-72 rounded-full bg-gold-accent/5 blur-3xl" />
-                    <div className="absolute bottom-20 right-10 w-96 h-96 rounded-full bg-gold-accent/5 blur-3xl" />
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full border border-gold-accent/5" />
+            <section className="relative min-h-[85vh] flex items-center bg-navy-dark text-white overflow-hidden">
+                {/* Animated Architectural Background */}
+                <div className="absolute inset-0 z-0 overflow-hidden">
+                    <motion.div
+                        initial={{ scale: 1.15 }}
+                        animate={{ scale: 1 }}
+                        transition={{ duration: 25, repeat: Infinity, repeatType: "reverse", ease: "linear" }}
+                        className="w-full h-full relative"
+                    >
+                        <Image
+                            src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?ixlib=rb-4.0.3&auto=format&fit=crop&w=2075&q=80"
+                            alt="Luxury modern architectural home design"
+                            fill
+                            priority
+                            className="object-cover"
+                            sizes="100vw"
+                        />
+                    </motion.div>
+                    {/* Deep gradient overlays for text readability & brand feel */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-navy-dark via-navy-dark/80 to-transparent z-10" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-navy-dark via-transparent to-transparent z-10" />
+                    <div className="absolute inset-0 bg-navy-dark/40 mix-blend-multiply z-10" />
                 </div>
-                <div className="container-wide relative z-10 py-20 px-4 sm:px-6 lg:px-8">
+
+                {/* Ambient Glows */}
+                <div className="absolute inset-0 z-10 pointer-events-none">
+                    <div className="absolute top-20 left-10 w-[500px] h-[500px] rounded-full bg-gold-accent/10 blur-[100px]" />
+                    <div className="absolute bottom-20 right-10 w-[600px] h-[600px] rounded-full bg-gold-accent/10 blur-[120px]" />
+                </div>
+
+                <div className="container-wide relative z-20 py-20 px-4 sm:px-6 lg:px-8">
                     <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }} className="max-w-3xl">
-                        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gold-accent/10 border border-gold-accent/20 text-gold-accent text-sm font-medium mb-6">
-                            <Sparkles className="w-4 h-4" /> Vastu-Compliant Designs
+                        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/20 text-gold-accent text-sm font-medium mb-6">
+                            <Sparkles className="w-4 h-4" /> Premium Vastu-Compliant Designs
                         </div>
                         <h1 className="text-4xl md:text-6xl font-bold leading-tight mb-6">
                             {homeData?.heroTitle || settings.hero_title || "Expert Vastu-Compliant Architectural & Structural Solutions"}
@@ -299,26 +323,6 @@ export default function HomeContent({ services, plans, testimonials, settings, c
                     <div className="flex items-center justify-center gap-2 text-gold-accent/80">
                         <MapPin className="w-5 h-5" /> Mumbai • Delhi • Pune • Hyderabad • Lucknow • And {homeData?.address || settings.stats_states || "25+"} States
                     </div>
-                </div>
-            </section>
-
-            {/* ─── REFERRAL ─── */}
-            <section className="section-padding bg-white">
-                <div className="container-wide">
-                    <Card className="border-0 shadow-lg bg-gradient-to-r from-navy-primary/5 to-gold-accent/5">
-                        <CardContent className="p-8 md:p-12 flex flex-col md:flex-row items-center gap-8">
-                            <div className="w-20 h-20 rounded-2xl gold-gradient flex items-center justify-center shrink-0 shadow-lg">
-                                <Gift className="w-10 h-10 text-navy-primary" />
-                            </div>
-                            <div className="flex-1 text-center md:text-left">
-                                <h3 className="text-2xl font-bold text-dark-blue mb-2">{settings.referral_title || "Refer & Earn Program"}</h3>
-                                <p className="text-muted-foreground">{settings.referral_description || "Earn rewards for every successful referral!"}</p>
-                            </div>
-                            <Button asChild className="gold-gradient text-navy-primary font-semibold px-8 shrink-0 hover:opacity-90">
-                                <Link href="/contact">Get Started <ArrowRight className="w-4 h-4 ml-2" /></Link>
-                            </Button>
-                        </CardContent>
-                    </Card>
                 </div>
             </section>
 

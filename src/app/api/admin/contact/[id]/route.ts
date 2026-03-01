@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabase";
+import { adminDb } from "@/lib/firebase-admin";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, apiError } from "@/lib/api-utils";
 
@@ -9,15 +9,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         const { id } = await params;
         const body = await req.json();
 
-        const { data, error } = await supabaseAdmin
-            .from("ContactSubmission")
-            .update({ isRead: body.isRead ?? true })
-            .eq("id", id)
-            .select()
-            .single();
+        await adminDb.collection("ContactSubmission").doc(id).update({ isRead: body.isRead ?? true });
 
-        if (error) throw error;
-        return NextResponse.json(data);
+        const doc = await adminDb.collection("ContactSubmission").doc(id).get();
+        return NextResponse.json(doc.data());
     } catch (error) {
         console.error("[Contact ID API] PUT Error:", error);
         return apiError("Failed to update submission");
@@ -30,12 +25,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
         if (!authorized) return errorResponse;
         const { id } = await params;
 
-        const { error } = await supabaseAdmin
-            .from("ContactSubmission")
-            .delete()
-            .eq("id", id);
+        await adminDb.collection("ContactSubmission").doc(id).delete();
 
-        if (error) throw error;
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error("[Contact ID API] DELETE Error:", error);

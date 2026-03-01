@@ -74,7 +74,7 @@ export default function AdminLoginPage() {
                                 id="email"
                                 name="email"
                                 type="email"
-                                placeholder="admin@pmassociates.in"
+                                placeholder="admin@vastu.com"
                                 required
                                 autoFocus
                             />
@@ -113,8 +113,8 @@ export default function AdminLoginPage() {
                     {/* Demo Credentials */}
                     <div className="mt-6 p-4 rounded-xl bg-section-gray text-center">
                         <p className="text-xs text-muted-foreground mb-1">Demo Credentials</p>
-                        <p className="text-sm font-mono text-dark-blue">admin@pmassociates.in</p>
-                        <p className="text-sm font-mono text-dark-blue">admin123</p>
+                        <p className="text-sm font-mono text-dark-blue">admin@vastu.com</p>
+                        <p className="text-sm font-mono text-dark-blue">password123</p>
                     </div>
                 </CardContent>
             </Card>

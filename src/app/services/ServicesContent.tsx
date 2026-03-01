@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
     CheckCircle2, ChevronRight, ShoppingBag, Loader2, MessageCircle,
@@ -15,6 +16,7 @@ import {
 } from "lucide-react";
 import { useRazorpay } from "@/hooks/useRazorpay";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 /* ─── Animation Variants ─────────────────────────────────── */
 const fadeInUp = {
@@ -34,6 +36,7 @@ interface Service {
     price?: string | null;
     originalPrice?: string | null;
     sampleImageUrl?: string | null;
+    sampleDocumentUrl?: string | null;
     inclusions?: string[] | null;
     processSteps: string[] | null;
     deliverables: string[] | null;
@@ -78,6 +81,7 @@ function ServiceCard({
     const displayPrice = service.price || null;
     const displayOriginalPrice = (service as any).originalPrice || null;
     const displaySampleImageUrl = service.sampleImageUrl || null;
+    const displaySampleDocumentUrl = service.sampleDocumentUrl || null;
 
     const price = formatPrice(displayPrice);
     const originalPrice = formatPrice(displayOriginalPrice);
@@ -117,16 +121,16 @@ function ServiceCard({
                     </div>
                 )}
 
-                {/* Download Button */}
+                {/* Download Button - Redesigned for Mobile Responsiveness (Android/Desktop) */}
                 <a
-                    href={service.sampleImageUrl ? `${service.sampleImageUrl}?download=` : "#"}
-                    download={service.sampleImageUrl ? `${service.slug}-sample` : undefined}
+                    href={displaySampleDocumentUrl || "#"}
+                    download={displaySampleDocumentUrl ? `${service.slug}-sample` : undefined}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`absolute bottom-4 left-4 right-4 flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-xl text-white border border-white/30 font-bold px-4 py-3 rounded-2xl shadow-2xl transition-all z-10 group/dl ${!displaySampleImageUrl ? "opacity-0 pointer-events-none" : "opacity-100"}`}
+                    className={`absolute bottom-3 left-3 right-3 sm:bottom-4 sm:left-4 sm:right-4 flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-xl text-white border border-white/30 font-bold px-3 py-2.5 sm:px-4 sm:py-3 rounded-xl sm:rounded-2xl shadow-2xl transition-all z-10 group/dl ${!displaySampleDocumentUrl ? "opacity-0 pointer-events-none" : "opacity-100"}`}
                 >
-                    <Download className="w-4 h-4 group-hover/dl:animate-bounce" />
-                    <span className="text-xs tracking-wide uppercase font-black">Verify Quality: Download Sample</span>
+                    <Download className="w-3.5 h-3.5 sm:w-4 sm:h-4 group-hover/dl:animate-bounce shrink-0" />
+                    <span className="text-[10px] sm:text-xs tracking-wide uppercase font-black truncate">Verify Quality: Download Sample</span>
                 </a>
             </div>
 
@@ -247,11 +251,13 @@ function ServiceCard({
 /* ─── Main Page Component ────────────────────────────────── */
 export default function ServicesContent({ services }: { services: Service[] }) {
     const { checkout, loading } = useRazorpay();
+    const router = useRouter();
 
     const [checkoutService, setCheckoutService] = useState<Service | null>(null);
     const [buyerName, setBuyerName] = useState("");
     const [buyerEmail, setBuyerEmail] = useState("");
     const [buyerPhone, setBuyerPhone] = useState("");
+    const [buyerRequirements, setBuyerRequirements] = useState("");
     const [checkoutOpen, setCheckoutOpen] = useState(false);
     const [purchaseSuccess, setPurchaseSuccess] = useState(false);
 
@@ -266,6 +272,7 @@ export default function ServicesContent({ services }: { services: Service[] }) {
         setBuyerName("");
         setBuyerEmail("");
         setBuyerPhone("");
+        setBuyerRequirements("");
         setCheckoutOpen(true);
     };
 
@@ -279,10 +286,11 @@ export default function ServicesContent({ services }: { services: Service[] }) {
             name: buyerName,
             email: buyerEmail,
             phone: buyerPhone,
+            requirements: buyerRequirements,
             description: `Service: ${checkoutService.title}`,
-            onSuccess: () => {
+            onSuccess: (response: any) => {
                 setPurchaseSuccess(true);
-                toast.success("Payment successful! We'll deliver your service via WhatsApp.");
+                router.push(`/thank-you?order_id=${response.razorpay_order_id || "ADV-VSR"}`);
             },
         });
         setCheckoutService(null);
@@ -398,6 +406,10 @@ export default function ServicesContent({ services }: { services: Service[] }) {
                             <div className="space-y-2">
                                 <Label htmlFor="svc-phone" className="text-xs uppercase font-black text-navy-primary/50 tracking-widest pl-1">WhatsApp Number *</Label>
                                 <Input id="svc-phone" type="tel" value={buyerPhone} onChange={(e) => setBuyerPhone(e.target.value)} placeholder="+91 XXXXX XXXXX" required className="h-14 rounded-2xl border-navy-primary/10 bg-cream-bg/30 px-4 text-base shadow-sm focus-visible:ring-gold-accent" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="svc-req" className="text-xs uppercase font-black text-navy-primary/50 tracking-widest pl-1">Project Requirements (Optional)</Label>
+                                <Textarea id="svc-req" value={buyerRequirements} onChange={(e) => setBuyerRequirements(e.target.value)} placeholder="Tell us about your plot size, preferences, or special needs..." className="min-h-[100px] rounded-2xl border-navy-primary/10 bg-cream-bg/30 px-4 py-3 text-base shadow-sm focus-visible:ring-gold-accent resize-none" />
                             </div>
                             <Button type="submit" disabled={loading} className="w-full h-16 rounded-2xl gold-gradient text-navy-primary font-black text-lg shadow-xl shadow-gold-accent/20 hover:shadow-2xl hover:-translate-y-1 transition-all mt-4">
                                 {loading ? <Loader2 className="w-6 h-6 animate-spin mr-2" /> : <ShoppingBag className="w-6 h-6 mr-2" />}

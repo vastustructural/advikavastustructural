@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabase";
+import { adminDb } from "@/lib/firebase-admin";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, sanitizeObject, apiError } from "@/lib/api-utils";
 
@@ -22,15 +22,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
             updateData.slug = sanitized.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
         }
 
-        const { data, error } = await supabaseAdmin
-            .from("Calculator")
-            .update(updateData)
-            .eq("id", id)
-            .select()
-            .single();
+        // Remove undefined values
+        Object.keys(updateData).forEach(key => updateData[key] === undefined && delete updateData[key]);
 
-        if (error) throw error;
-        return NextResponse.json(data);
+        await adminDb.collection("Calculator").doc(id).update(updateData);
+
+        const doc = await adminDb.collection("Calculator").doc(id).get();
+        return NextResponse.json(doc.data());
     } catch (error) {
         console.error("[Calculator ID API] PUT Error:", error);
         return apiError("Failed to update calculator");
@@ -43,12 +41,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
         if (!authorized) return errorResponse;
         const { id } = await params;
 
-        const { error } = await supabaseAdmin
-            .from("Calculator")
-            .delete()
-            .eq("id", id);
+        await adminDb.collection("Calculator").doc(id).delete();
 
-        if (error) throw error;
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error("[Calculator ID API] DELETE Error:", error);

@@ -1,84 +1,106 @@
-# Advika Vastu-Structural (P M & Associates)
+# Project
 
-This is a comprehensive web application for P M & Associates, specializing in Architectural, Planning, and Engineering services.
+Next.js (v16) TypeScript web app with Firebase, NextAuth, and Razorpay integration.
 
-## Tech Stack
-- **Framework**: [Next.js 15](https://nextjs.org/) (App Router)
-- **Language**: [TypeScript](https://www.typescriptlang.org/)
-- **Database**: [Prisma](https://www.prisma.io/) with PostgreSQL (Supabase)
-- **Styling**: [Tailwind CSS v4](https://tailwindcss.com/)
-- **Authentication**: [NextAuth.js v5 Beta](https://next-auth.js.org/)
-- **Payments**: [Razorpay](https://razorpay.com/)
-- **UI Components**: [Shadcn UI](https://ui.shadcn.com/)
-- **State/Animations**: [Framer Motion](https://www.framer.com/motion/), [Lucide React](https://lucide.dev/)
+## Tech stack
 
-## Detailed Project Structure
+- Next.js 16 + React 19
+- TypeScript
+- Firebase (client + admin)
+- NextAuth for authentication
+- Razorpay for payments
+- Tailwind CSS
 
-### `/src`
-The heart of the application.
-- **`/app`**: Next.js App Router folders.
-  - `(auth)/`: Authentication routes.
-  - `admin/`: Complete admin dashboard for managing all site content.
-    - `home/`, `about/`, `services/`, `plans/`, `products/`, `testimonials/`, `gallery/`, `contact/`, `cta/`, `legal/`, `calculators/`, `settings/`
-  - `api/`: Backend API endpoints.
-    - `admin/`: Management APIs for each section.
-    - `auth/`: Authentication endpoints.
-    - `chat/`: AI Chatbot backend.
-    - `payments/`: Razorpay integration logic.
-  - `shop/`: Public-facing store interface.
-  - `about/`, `contact/`, `gallery/`, `legal/`, `plans/`, `services/`: Public informational pages.
-  - `globals.css`: Global styles (Tailwind v4 imports).
-  - `layout.tsx`: Root layout with font and provider setup.
-  - `page.tsx`: Home page entry point.
-- **`/components`**: UI components.
-  - `layout/`: Shared components like `Header.tsx`, `Footer.tsx`.
-  - `ui/`: Atom-level components (Button, Input, Badge, etc.).
-  - `Chatbot.tsx`: The AI assistant component.
-  - `WelcomePopup.tsx`: Promotional or information modal.
-- **`/lib`**: Server-side logic and utilities.
-  - `prisma.ts`: Shared Prisma client instance.
-  - `auth.ts`: NextAuth configuration and providers.
-  - `chatbot-engine.ts`: Core AI logic.
-  - `api-utils.ts`: Helpers for API responses and handling.
-- **`/hooks`**: Custom React hooks for client-side state.
-- **`/types`**: Project-wide TypeScript interfaces and types.
+## Quick start
 
-### `/prisma`
-- `schema.prisma`: The database source of truth.
-- `seed.ts`: Script to populate the database with initial/dev data.
+Prerequisites
 
-### `/public`
-- Static assets (logos, icons, SVG files).
+- Node.js 18+ (recommended)
+- npm or pnpm
 
-### Key Files
-- `.env`: Environment variables (Secret keys, DB URLs).
-- `next.config.ts`: Next.js behavior configuration.
-- `package.json`: Dependency list and operation scripts.
-- `ARCHITECTURE.md`: Technical overview of the system.
-- `.vscode/settings.json`: Editor-specific settings (e.g., suppressing CSS warnings).
+Install
 
-## Getting Started
+```bash
+npm install
+```
 
-1. **Install Dependencies**:
-   ```bash
-   npm install
-   ```
+Development
 
-2. **Setup Environment**:
-   Copy `.env.example` to `.env` and fill in the required variables.
+```bash
+npm run dev
+# Open http://localhost:3000
+```
 
-3. **Database Setup**:
-   ```bash
-   npx prisma migrate dev
-   npm run db:seed
-   ```
+Build
 
-4. **Run Development Server**:
-   ```bash
-   npm run dev
-   ```
+```bash
+npm run build
+npm run start
+```
 
-## Development Workflows
-- **Update Database**: Modify `prisma/schema.prisma` then run `npx prisma migrate dev`.
-- **Admin Panel**: Accessible at `/admin` (requires admin credentials).
-- **Styling**: Uses Tailwind CSS v4. Add new tokens in `@theme` block within `globals.css`.
+Lint
+
+```bash
+npm run lint
+```
+
+Run a TypeScript script (examples in `scripts/` or `tests/`)
+
+```bash
+npx tsx tests/verify-razorpay-logic.ts
+```
+
+## Environment variables
+
+The app uses several environment variables. Provide these in a `.env.local` (or via your hosting provider):
+
+- `NEXT_PUBLIC_FIREBASE_API_KEY`
+- `NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
+- `NEXT_PUBLIC_FIREBASE_PROJECT_ID`
+- `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
+- `NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
+- `NEXT_PUBLIC_FIREBASE_APP_ID`
+
+Server / admin-side (private):
+
+- `FIREBASE_SERVICE_ACCOUNT_KEY` (JSON string) OR the trio below:
+  - `FIREBASE_PROJECT_ID`
+  - `FIREBASE_CLIENT_EMAIL`
+  - `FIREBASE_PRIVATE_KEY` (newline characters must be escaped as `\n` when set in the env)
+- `AUTH_SECRET` (NextAuth secret)
+- `NEXT_PUBLIC_RAZORPAY_KEY_ID` (client key)
+- Razorpay secret key should be kept server-side (used in API routes)
+
+Notes
+
+- If using `FIREBASE_SERVICE_ACCOUNT_KEY`, set it to the JSON string of the service account. The code already handles either approach.
+- `NEXT_PUBLIC_` prefixed vars are safe to expose to the browser; others must remain secret.
+
+## Useful folders & files
+
+- `src/app` — Next.js app routes and pages
+- `src/lib/firebase.ts` — client Firebase init
+- `src/lib/firebase-admin.ts` — admin Firebase init
+- `src/lib/auth.ts` — NextAuth configuration
+- `src/hooks/useRazorpay.ts` — Razorpay client hook
+- `scripts/` — utilities and seed scripts (e.g., `seed-shop.ts`)
+- `tests/verify-razorpay-logic.ts` — example test/script
+
+## Deployment
+
+- Host on Vercel (recommended) or other Node-compatible host.
+- Set the same environment variables in your host dashboard.
+- Build step: `npm run build` then `npm start` (or let the host run the build/start as configured).
+
+## Local development tips
+
+- Use `npx dotenv -e .env.local -- npm run dev` if you want to load env vars from a local file for certain CLI invocations.
+- For Firebase admin local testing, prefer `FIREBASE_SERVICE_ACCOUNT_KEY` or set the three admin env vars.
+
+## Contributing
+
+- Open issues or PRs for improvements.
+
+## License
+
+- Add a license file if desired.

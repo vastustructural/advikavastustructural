@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabase";
+import { adminDb } from "@/lib/firebase-admin";
 import { NextResponse } from "next/server";
 import { requireAuth, apiError } from "@/lib/api-utils";
 
@@ -7,29 +7,24 @@ export async function GET() {
         const { authorized, errorResponse } = await requireAuth();
         if (!authorized) return errorResponse;
 
-        // Fetch referrers with their PAID payments
-        const { data: referrers, error } = await supabaseAdmin
-            .from("Referrer")
-            .select(`
-                *,
-                payments:Payment(
-                    amount
-                )
-            `)
-            .eq("payments.status", "PAID")
-            .order("createdAt", { ascending: false });
+        const referrersSnap = await adminDb.collection("Referrer").orderBy("createdAt", "desc").get();
+        const referrers = referrersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-        if (error) throw error;
+        const paymentsSnap = await adminDb.collection("Payment").where("status", "==", "PAID").get();
+        const payments = paymentsSnap.docs.map(doc => doc.data());
 
-        const formattedReferrers = (referrers || []).map((r: any) => ({
-            id: r.id,
-            name: r.name,
-            phone: r.phone,
-            referralCode: r.referralCode,
-            successfulReferrals: r.payments?.length || 0,
-            totalRevenue: r.payments?.reduce((sum: number, p: any) => sum + p.amount, 0) || 0,
-            createdAt: r.createdAt
-        }));
+        const formattedReferrers = referrers.map((r: any) => {
+            const rPayments = payments.filter((p: any) => p.referrerId === r.id);
+            return {
+                id: r.id,
+                name: r.name,
+                phone: r.phone,
+                referralCode: r.referralCode,
+                successfulReferrals: rPayments.length,
+                totalRevenue: rPayments.reduce((sum: number, p: any) => sum + (p.amount || 0), 0),
+                createdAt: r.createdAt
+            };
+        });
 
         return NextResponse.json(formattedReferrers);
     } catch (error) {

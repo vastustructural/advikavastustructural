@@ -61,9 +61,13 @@ export default function AdminSettingsPage() {
                         <div><Label>Company Name</Label><Input value={settings.company_name || ""} onChange={(e) => update("company_name", e.target.value)} /></div>
                         <div><Label>Tagline</Label><Input value={settings.tagline || ""} onChange={(e) => update("tagline", e.target.value)} /></div>
                         <div><Label>Email</Label><Input value={settings.email || ""} onChange={(e) => update("email", e.target.value)} /></div>
+                        <div><Label>Secondary Email</Label><Input value={settings.email_2 || ""} onChange={(e) => update("email_2", e.target.value)} /></div>
                         <div><Label>Phone</Label><Input value={settings.phone || ""} onChange={(e) => update("phone", e.target.value)} /></div>
+                        <div><Label>Secondary Phone</Label><Input value={settings.phone_2 || ""} onChange={(e) => update("phone_2", e.target.value)} /></div>
                         <div><Label>WhatsApp</Label><Input value={settings.whatsapp || ""} onChange={(e) => update("whatsapp", e.target.value)} /></div>
                         <div><Label>Address</Label><Input value={settings.address || ""} onChange={(e) => update("address", e.target.value)} /></div>
+                        <div><Label>Working Hours</Label><Input value={settings.working_hours || ""} placeholder="Mon – Sat: 9:00 AM – 7:00 PM" onChange={(e) => update("working_hours", e.target.value)} /></div>
+                        <div><Label>Working Days Off</Label><Input value={settings.working_days_off || ""} placeholder="Sunday: Closed" onChange={(e) => update("working_days_off", e.target.value)} /></div>
                     </div>
                 </CardContent>
             </Card>

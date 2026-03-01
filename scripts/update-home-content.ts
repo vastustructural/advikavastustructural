@@ -1,22 +1,41 @@
-import { supabaseAdmin } from "../src/lib/supabase";
+import { adminDb } from "../src/lib/firebase-admin";
 import "dotenv/config";
+import bcrypt from "bcryptjs";
 
 async function main() {
-    console.log("🚀 Updating Home Page and Services content...");
+    console.log("🚀 Initializing Firebase Database with default content...");
 
     try {
-        // --- Update Home Page Hero ---
-        const { error: heroError } = await supabaseAdmin
-            .from("HomePage")
-            .upsert({
-                id: "singleton",
-                heroTitle: "Easiest Way to Design Beautiful Homes and Spaces",
-                heroDescription: "House plan, 3D building elevation designs, and interior designing services at best rates. Get your home expertly designed fast easy and affordably.",
-                heroButtonText: "Explore Designs",
-                heroButtonLink: "/services",
+        // --- Create Admin User ---
+        console.log("  [1/3] Creating default Admin User...");
+        const adminEmail = "admin@advika.com";
+        const adminPassword = "password123";
+        const userRef = adminDb.collection("AdminUser").where("email", "==", adminEmail);
+        const existingUser = await userRef.get();
+        if (existingUser.empty) {
+            const hashedPassword = await bcrypt.hash(adminPassword, 10);
+            await adminDb.collection("AdminUser").add({
+                email: adminEmail,
+                password: hashedPassword,
+                role: "super_admin",
+                createdAt: new Date().toISOString()
             });
+            console.log(`  ✅ Default Admin created: ${adminEmail} / ${adminPassword}`);
+        } else {
+            console.log("  ℹ️ Admin User already exists. Skipping.");
+        }
 
-        if (heroError) throw heroError;
+        // --- Update Home Page Hero ---
+        console.log("  [2/3] Updating Home Page...");
+        const homeRef = adminDb.collection("HomePage").doc("singleton");
+        await homeRef.set({
+            id: "singleton",
+            heroTitle: "Easiest Way to Design Beautiful Homes and Spaces",
+            heroDescription: "House plan, 3D building elevation designs, and interior designing services at best rates. Get your home expertly designed fast easy and affordably.",
+            heroButtonText: "Explore Designs",
+            heroButtonLink: "/services",
+        }, { merge: true });
+
         console.log("  ✅ Hero section updated");
 
         // --- Update Services ---
@@ -65,11 +84,24 @@ async function main() {
             },
         ];
 
-        const { error: servicesError } = await supabaseAdmin
-            .from("Service")
-            .upsert(services);
+        const batch = adminDb.batch();
+        const servicesCollection = adminDb.collection("Service");
 
-        if (servicesError) throw servicesError;
+        for (const service of services) {
+            // Check if service exists by slug
+            const existing = await servicesCollection.where("slug", "==", service.slug).limit(1).get();
+            let docRef;
+            if (!existing.empty) {
+                docRef = existing.docs[0].ref;
+            } else {
+                docRef = servicesCollection.doc();
+                (service as any).id = docRef.id;
+            }
+            batch.set(docRef, service, { merge: true });
+        }
+
+        await batch.commit();
+
         console.log(`  ✅ ${services.length} services updated`);
 
         console.log("\n✨ Success: Content updated in the database!");

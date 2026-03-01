@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import Razorpay from "razorpay";
-import { supabaseAdmin } from "@/lib/supabase";
+import { adminDb } from "@/lib/firebase-admin";
 import { z } from "zod";
 import { nanoid } from "nanoid";
 
@@ -20,6 +20,7 @@ const createOrderSchema = z.object({
     userEmail: z.string().email().optional().or(z.literal("")),
     userName: z.string().optional(),
     userPhone: z.string().optional(),
+    requirements: z.string().optional(),
     referralCode: z.string().optional(),
 });
 
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Invalid request data", details: validation.error.format() }, { status: 400 });
         }
 
-        const { amount, currency, planId, productId, userEmail, userName, userPhone, referralCode } = validation.data;
+        const { amount, currency, planId, productId, userEmail, userName, userPhone, requirements, referralCode } = validation.data;
 
         if (!amount || amount <= 0) {
             return NextResponse.json({ error: "Valid amount is required" }, { status: 400 });
@@ -50,35 +51,30 @@ export async function POST(req: Request) {
         // Check for referral
         let referrerId = null;
         if (referralCode) {
-            const { data: referrer, error: referrerError } = await supabaseAdmin
-                .from("Referrer")
-                .select("id")
-                .eq("referralCode", referralCode)
-                .single();
+            const referrerSnap = await adminDb.collection("Referrer").where("referralCode", "==", referralCode).limit(1).get();
 
-            if (referrer && !referrerError) {
-                referrerId = referrer.id;
+            if (!referrerSnap.empty) {
+                referrerId = referrerSnap.docs[0].id;
             }
         }
 
         // Save payment record to database
-        const { error: dbError } = await supabaseAdmin
-            .from("Payment")
-            .insert({
-                id: nanoid(),
-                razorpayOrderId: order.id,
-                amount: amount,
-                currency,
-                status: "PENDING",
-                userEmail: userEmail || null,
-                userName: userName || null,
-                userPhone: userPhone || null,
-                planId: planId || null,
-                productId: productId || null,
-                referrerId: referrerId
-            });
-
-        if (dbError) throw dbError;
+        const newId = nanoid();
+        await adminDb.collection("Payment").doc(newId).set({
+            id: newId,
+            razorpayOrderId: order.id,
+            amount: amount,
+            currency,
+            status: "PENDING",
+            userEmail: userEmail || null,
+            userName: userName || null,
+            userPhone: userPhone || null,
+            requirements: requirements || null,
+            planId: planId || null,
+            productId: productId || null,
+            referrerId: referrerId,
+            createdAt: new Date().toISOString()
+        });
 
         return NextResponse.json(order);
     } catch (error: any) {

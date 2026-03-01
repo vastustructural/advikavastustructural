@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabase";
+import { adminDb } from "@/lib/firebase-admin";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, sanitizeObject, apiError } from "@/lib/api-utils";
 
@@ -9,7 +9,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         const { id } = await params;
         const body = await req.json();
 
-        const sanitized = sanitizeObject(body, ["title", "description", "price", "originalPrice", "sampleImageUrl", "icon"]);
+        const sanitized = sanitizeObject(body, ["title", "description", "price", "originalPrice", "sampleImageUrl", "sampleDocumentUrl", "icon"]);
         const updateData: Record<string, any> = {};
 
         if (sanitized.title !== undefined) {
@@ -22,6 +22,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         if (sanitized.price !== undefined) updateData.price = sanitized.price || null;
         if (sanitized.originalPrice !== undefined) updateData.originalPrice = sanitized.originalPrice || null;
         if (sanitized.sampleImageUrl !== undefined) updateData.sampleImageUrl = sanitized.sampleImageUrl || null;
+        if (sanitized.sampleDocumentUrl !== undefined) updateData.sampleDocumentUrl = sanitized.sampleDocumentUrl || null;
 
         if (body.inclusions !== undefined) updateData.inclusions = Array.isArray(body.inclusions) ? body.inclusions : [];
         if (body.processSteps !== undefined) updateData.processSteps = Array.isArray(body.processSteps) ? body.processSteps : [];
@@ -29,15 +30,10 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         if (body.isVisible !== undefined) updateData.isVisible = body.isVisible;
         if (body.order !== undefined) updateData.order = body.order;
 
-        const { data: service, error } = await supabaseAdmin
-            .from("Service")
-            .update(updateData)
-            .eq("id", id)
-            .select()
-            .single();
+        await adminDb.collection("Service").doc(id).update(updateData);
 
-        if (error) throw error;
-        return NextResponse.json(service);
+        const doc = await adminDb.collection("Service").doc(id).get();
+        return NextResponse.json(doc.data());
     } catch (error) {
         console.error("[Service ID API] PUT Error:", error);
         return apiError("Failed to update service");
@@ -50,12 +46,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
         if (!authorized) return errorResponse;
         const { id } = await params;
 
-        const { error } = await supabaseAdmin
-            .from("Service")
-            .delete()
-            .eq("id", id);
+        await adminDb.collection("Service").doc(id).delete();
 
-        if (error) throw error;
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error("[Service ID API] DELETE Error:", error);

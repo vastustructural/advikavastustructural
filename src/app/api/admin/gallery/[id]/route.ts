@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabase";
+import { adminDb } from "@/lib/firebase-admin";
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, sanitizeObject, apiError } from "@/lib/api-utils";
 
@@ -10,15 +10,13 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
         const body = await req.json();
         const sanitized = sanitizeObject(body, ["title", "description", "imageUrl", "categoryId", "order", "isVisible"]);
 
-        const { data: item, error } = await supabaseAdmin
-            .from("GalleryItem")
-            .update(sanitized)
-            .eq("id", id)
-            .select()
-            .single();
+        // Remove undefined values
+        Object.keys(sanitized).forEach(key => sanitized[key] === undefined && delete sanitized[key]);
 
-        if (error) throw error;
-        return NextResponse.json(item);
+        await adminDb.collection("GalleryItem").doc(id).update(sanitized);
+
+        const doc = await adminDb.collection("GalleryItem").doc(id).get();
+        return NextResponse.json(doc.data());
     } catch (error) {
         console.error("[Gallery ID API] PUT Error:", error);
         return apiError("Failed to update gallery item");
@@ -31,12 +29,8 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
         if (!authorized) return errorResponse;
         const { id } = await params;
 
-        const { error } = await supabaseAdmin
-            .from("GalleryItem")
-            .delete()
-            .eq("id", id);
+        await adminDb.collection("GalleryItem").doc(id).delete();
 
-        if (error) throw error;
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error("[Gallery ID API] DELETE Error:", error);

@@ -14,7 +14,7 @@ import { toast } from "sonner";
 
 interface Service {
     id: string; title: string; slug: string; description: string; icon: string;
-    price?: string; originalPrice?: string; sampleImageUrl?: string; inclusions?: string[];
+    price?: string; originalPrice?: string; sampleImageUrl?: string; sampleDocumentUrl?: string; inclusions?: string[];
     processSteps: string[]; deliverables: string[]; order: number; isVisible: boolean;
 }
 
@@ -23,9 +23,11 @@ export default function AdminServicesPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [uploading, setUploading] = useState(false);
+    const [uploadingDoc, setUploadingDoc] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editForm, setEditForm] = useState<Partial<Service>>({});
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const docInputRef = useRef<HTMLInputElement>(null);
 
     useEffect(() => { fetchServices(); }, []);
 
@@ -125,6 +127,32 @@ export default function AdminServicesPage() {
         } finally {
             setUploading(false);
             if (fileInputRef.current) fileInputRef.current.value = "";
+        }
+    }
+
+    async function handleDocumentUpload(e: React.ChangeEvent<HTMLInputElement>) {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setUploadingDoc(true);
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+            formData.append("folder", "service_samples");
+
+            const res = await fetch("/api/admin/upload", { method: "POST", body: formData });
+            if (!res.ok) {
+                const err = await res.json();
+                throw new Error(err.error || "Upload failed");
+            }
+            const { url } = await res.json();
+            setEditForm(prev => ({ ...prev, sampleDocumentUrl: url }));
+            toast.success("Document uploaded");
+        } catch (err: any) {
+            toast.error(err.message || "Upload failed");
+        } finally {
+            setUploadingDoc(false);
+            if (docInputRef.current) docInputRef.current.value = "";
         }
     }
 
@@ -335,7 +363,7 @@ export default function AdminServicesPage() {
 
                                                     <div className="space-y-3">
                                                         <div className="flex items-center justify-between px-1">
-                                                            <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">Sample Work Document / Image</Label>
+                                                            <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">Display Image (Cover)</Label>
                                                             <HelpCircle className="w-3.5 h-3.5 text-muted-foreground/40 cursor-help" />
                                                         </div>
                                                         <div className="group relative">
@@ -365,6 +393,41 @@ export default function AdminServicesPage() {
                                                                         </>
                                                                     )}
                                                                     <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleSampleUpload} disabled={uploading} />
+                                                                </label>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Document Upload Area */}
+                                                        <div className="flex items-center justify-between px-1 pt-4">
+                                                            <Label className="uppercase text-[10px] font-black text-muted-foreground tracking-widest">Downloadable Sample File (PDF/Docs)</Label>
+                                                        </div>
+                                                        <div className="group relative">
+                                                            {editForm.sampleDocumentUrl ? (
+                                                                <div className="relative w-full h-32 rounded-[2rem] flex flex-col items-center justify-center border-2 border-green-200 bg-green-50 shadow-inner">
+                                                                    <CheckCircle2 className="w-8 h-8 text-green-500 mb-2" />
+                                                                    <span className="text-sm font-bold text-green-700">Document Uploaded Successfully</span>
+                                                                    <a href={editForm.sampleDocumentUrl} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-green-600 underline mt-2 hover:text-green-800">View Current File</a>
+                                                                    <div className="absolute inset-0 bg-white/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-[2rem]">
+                                                                        <Button variant="destructive" size="sm" className="rounded-full h-10 px-6 font-bold shadow-xl" onClick={() => setEditForm({ ...editForm, sampleDocumentUrl: "" })}>
+                                                                            <X className="w-4 h-4 mr-2" /> Remove File
+                                                                        </Button>
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-muted-foreground/20 rounded-[2rem] cursor-pointer hover:bg-sky-50/50 hover:border-sky-300 transition-all group overflow-hidden bg-muted/5">
+                                                                    {uploadingDoc ? (
+                                                                        <div className="flex flex-col items-center gap-3">
+                                                                            <Loader2 className="w-8 h-8 animate-spin text-sky-primary" />
+                                                                        </div>
+                                                                    ) : (
+                                                                        <>
+                                                                            <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-sky-primary/30 group-hover:text-sky-primary group-hover:scale-110 transition-all mb-3">
+                                                                                <Upload className="w-6 h-6" />
+                                                                            </div>
+                                                                            <p className="text-xs font-black text-dark-blue uppercase tracking-widest">Upload Sample PDF/DWG</p>
+                                                                        </>
+                                                                    )}
+                                                                    <input ref={docInputRef} type="file" accept=".pdf,.doc,.docx,.dwg,.zip,.jpg,.jpeg,.png" className="hidden" onChange={handleDocumentUpload} disabled={uploadingDoc} />
                                                                 </label>
                                                             )}
                                                         </div>

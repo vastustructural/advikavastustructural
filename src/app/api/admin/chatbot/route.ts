@@ -1,4 +1,4 @@
-import { supabaseAdmin } from "@/lib/supabase";
+import { adminDb } from "@/lib/firebase-admin";
 import { NextResponse } from "next/server";
 import { requireAuth, apiError } from "@/lib/api-utils";
 
@@ -7,20 +7,26 @@ export async function GET() {
         const { authorized, errorResponse } = await requireAuth();
         if (!authorized) return errorResponse;
 
-        const { data: sessions, error } = await supabaseAdmin
-            .from("ChatSession")
-            .select("*, messages:ChatMessage(*)")
-            .order("createdAt", { ascending: false })
-            .limit(100);
+        const sessionsSnap = await adminDb.collection("ChatSession")
+            .orderBy("createdAt", "desc")
+            .limit(100)
+            .get();
 
-        if (error) throw error;
+        const sessions = sessionsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
-        // Sort messages manually as Supabase order on nested select is complex
-        const formattedSessions = sessions?.map(session => ({
-            ...session,
-            messages: (session.messages || []).sort((a: any, b: any) =>
-                new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-            )
+        const formattedSessions = await Promise.all(sessions.map(async (session: any) => {
+            const messagesSnap = await adminDb.collection("ChatMessage")
+                .where("sessionId", "==", session.id)
+                .get();
+
+            const messages = messagesSnap.docs
+                .map(doc => ({ id: doc.id, ...doc.data() } as any))
+                .sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+
+            return {
+                ...session,
+                messages
+            };
         }));
 
         return NextResponse.json(formattedSessions);
@@ -40,12 +46,8 @@ export async function DELETE(req: Request) {
 
         if (!id) return apiError("Session ID is required", 400);
 
-        const { error } = await supabaseAdmin
-            .from("ChatSession")
-            .delete()
-            .eq("id", id);
+        await adminDb.collection("ChatSession").doc(id).delete();
 
-        if (error) throw error;
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error("[Chatbot Admin API] DELETE Error:", error);

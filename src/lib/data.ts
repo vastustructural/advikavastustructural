@@ -1,175 +1,250 @@
 import { cache } from "react";
-import { supabaseAdmin } from "./supabase";
+import { adminDb } from "./firebase-admin";
 import { HomePageData, DEFAULT_HOME_DATA, NavLink, SocialLink } from "./types/home";
 
 // ─── Error Handler ─────────────────────────────────────
-/** Wraps a Supabase query with error handling, returning a fallback on failure. */
-async function safeQuery<T>(queryFn: () => Promise<{ data: T | null; error: any }>, fallback: T, label: string): Promise<T> {
+/** Wraps a Firestore query with error handling, returning a fallback on failure. */
+async function safeQuery<T>(queryFn: () => Promise<T>, fallback: T, label: string): Promise<T> {
     try {
-        const { data, error } = await queryFn();
-        if (error) throw error;
-        return (data as T) || fallback;
+        return await queryFn();
     } catch (error) {
         console.error(`[Data] Failed to fetch ${label}:`, error instanceof Error ? error.message : error);
         return fallback;
     }
 }
 
+// Helper to map snapshot to array of items with id
+function mapQuerySnapshot(snapshot: FirebaseFirestore.QuerySnapshot) {
+    return snapshot.docs.map((doc) => {
+        const data = doc.data();
+        // Prevent Next.js Error: "Only plain objects can be passed to Client Components"
+        // Convert any Firebase Timestamps to standard serializable string primitives.
+        const serializedData = Object.entries(data).reduce((acc, [key, value]) => {
+            acc[key] = value && typeof value === 'object' && '_seconds' in value ? new Date(value.toDate()).toISOString() : value;
+            return acc;
+        }, {} as Record<string, any>);
+        return { id: doc.id, ...serializedData } as any;
+    });
+}
+
 // ─── Services ──────────────────────────────────────────
-/** Fetches all visible services ordered by display position. */
 export async function getServices() {
     return safeQuery(
-        async () => await supabaseAdmin.from("Service").select("*").eq("isVisible", true).order("order"),
+        async () => {
+            const snapshot = await adminDb.collection("Service").orderBy("order").get();
+            return mapQuerySnapshot(snapshot).filter((item: any) => item.isVisible !== false);
+        },
         [],
         "services"
     );
 }
 
-/** Fetches all services (including hidden) for admin panel. */
 export async function getAllServices() {
     return safeQuery(
-        async () => await supabaseAdmin.from("Service").select("*").order("order"),
+        async () => {
+            const snapshot = await adminDb.collection("Service").orderBy("order").get();
+            return mapQuerySnapshot(snapshot);
+        },
         [],
         "all services"
     );
 }
 
 // ─── Plans ─────────────────────────────────────────────
-/** Fetches all visible plans ordered by display position. */
 export async function getPlans() {
     return safeQuery(
-        async () => await supabaseAdmin.from("Plan").select("*").eq("isVisible", true).order("order"),
+        async () => {
+            const snapshot = await adminDb.collection("Plan").orderBy("order").get();
+            return mapQuerySnapshot(snapshot).filter((item: any) => item.isVisible !== false);
+        },
         [],
         "plans"
     );
 }
 
-/** Fetches all plans (including hidden) for admin panel. */
 export async function getAllPlans() {
     return safeQuery(
-        async () => await supabaseAdmin.from("Plan").select("*").order("order"),
+        async () => {
+            const snapshot = await adminDb.collection("Plan").orderBy("order").get();
+            return mapQuerySnapshot(snapshot);
+        },
         [],
         "all plans"
     );
 }
 
 // ─── Products ──────────────────────────────────────────
-/** Fetches all visible products ordered by display position. */
 export async function getProducts() {
     return safeQuery(
-        async () => await supabaseAdmin.from("Product").select("*").eq("isVisible", true).order("order"),
+        async () => {
+            const snapshot = await adminDb.collection("Product").orderBy("order").get();
+            return mapQuerySnapshot(snapshot).filter((item: any) => item.isVisible !== false);
+        },
         [],
         "products"
     );
 }
 
-/** Fetches all products (including hidden) for admin panel. */
 export async function getAllProducts() {
     return safeQuery(
-        async () => await supabaseAdmin.from("Product").select("*").order("order"),
+        async () => {
+            const snapshot = await adminDb.collection("Product").orderBy("order").get();
+            return mapQuerySnapshot(snapshot);
+        },
         [],
         "all products"
     );
 }
 
+export async function getProductById(id: string) {
+    return safeQuery(
+        async () => {
+            const doc = await adminDb.collection("Product").doc(id).get();
+            if (!doc.exists) return null;
+
+            const data = doc.data() as any;
+            const serializedData = Object.entries(data).reduce((acc, [key, value]) => {
+                acc[key] = value && typeof value === 'object' && '_seconds' in value ? new Date((value as any).toDate()).toISOString() : value;
+                return acc;
+            }, {} as Record<string, any>);
+
+            return { id: doc.id, ...serializedData } as any;
+        },
+        null,
+        `product: ${id}`
+    );
+}
+
 // ─── Gallery ───────────────────────────────────────────
-/** Fetches gallery categories with their visible items. */
 export async function getGalleryCategories() {
     return safeQuery(
-        async () => await supabaseAdmin
-            .from("GalleryCategory")
-            .select("*, items:GalleryItem(*)")
-            .eq("GalleryItem.isVisible", true)
-            .order("order")
-            .order("order", { foreignTable: "GalleryItem" }),
+        async () => {
+            const categoriesSnapshot = await adminDb.collection("GalleryCategory").orderBy("order").get();
+            const itemsSnapshot = await adminDb.collection("GalleryItem").orderBy("order").get();
+            const items = mapQuerySnapshot(itemsSnapshot).filter((item: any) => item.isVisible !== false);
+
+            return categoriesSnapshot.docs.map(doc => {
+                const category = { id: doc.id, ...doc.data() } as any;
+                return {
+                    ...category,
+                    items: items.filter((item: any) => item.categoryId === doc.id)
+                };
+            });
+        },
         [],
         "gallery categories"
     );
 }
 
-/** Fetches all visible gallery items with their category. */
 export async function getGalleryItems() {
     return safeQuery(
-        async () => await supabaseAdmin
-            .from("GalleryItem")
-            .select("*, category:GalleryCategory(*)")
-            .eq("isVisible", true)
-            .order("order"),
+        async () => {
+            const itemsSnapshot = await adminDb.collection("GalleryItem").orderBy("order").get();
+            const categoriesSnapshot = await adminDb.collection("GalleryCategory").get();
+            const categories = mapQuerySnapshot(categoriesSnapshot);
+
+            const categoryMap = new Map(categories.map((c: any) => [c.id, c]));
+            return itemsSnapshot.docs
+                .map(doc => {
+                    const item = { id: doc.id, ...doc.data() } as any;
+                    item.category = categoryMap.get(item.categoryId);
+                    return item;
+                })
+                .filter(item => item.isVisible !== false);
+        },
         [],
         "gallery items"
     );
 }
 
-/** Fetches all gallery items (including hidden) for admin panel. */
 export async function getAllGalleryItems() {
     return safeQuery(
-        async () => await supabaseAdmin
-            .from("GalleryItem")
-            .select("*, category:GalleryCategory(*)")
-            .order("order"),
+        async () => {
+            const itemsSnapshot = await adminDb.collection("GalleryItem").orderBy("order").get();
+            const categoriesSnapshot = await adminDb.collection("GalleryCategory").get();
+            const categories = mapQuerySnapshot(categoriesSnapshot);
+
+            const categoryMap = new Map(categories.map((c: any) => [c.id, c]));
+            return itemsSnapshot.docs.map(doc => {
+                const item = { id: doc.id, ...doc.data() } as any;
+                item.category = categoryMap.get(item.categoryId);
+                return item;
+            });
+        },
         [],
         "all gallery items"
     );
 }
 
 // ─── Testimonials ──────────────────────────────────────
-/** Fetches all visible testimonials ordered by display position. */
 export async function getTestimonials() {
     return safeQuery(
-        async () => await supabaseAdmin.from("Testimonial").select("*").eq("isVisible", true).order("order"),
+        async () => {
+            const snapshot = await adminDb.collection("Testimonial").orderBy("order").get();
+            return mapQuerySnapshot(snapshot).filter((item: any) => item.isVisible !== false);
+        },
         [],
         "testimonials"
     );
 }
 
-/** Fetches all testimonials (including hidden) for admin panel. */
 export async function getAllTestimonials() {
     return safeQuery(
-        async () => await supabaseAdmin.from("Testimonial").select("*").order("order"),
+        async () => {
+            const snapshot = await adminDb.collection("Testimonial").orderBy("order").get();
+            return mapQuerySnapshot(snapshot);
+        },
         [],
         "all testimonials"
     );
 }
 
 // ─── Legal Pages ───────────────────────────────────────
-/** Fetches a single legal page by its slug. */
 export async function getLegalPage(slug: string): Promise<{ title: string; content: string; slug: string } | null> {
     return safeQuery(
-        async () => await supabaseAdmin.from("LegalPage").select("*").eq("slug", slug).single(),
+        async () => {
+            const snapshot = await adminDb.collection("LegalPage").where("slug", "==", slug).limit(1).get();
+            if (snapshot.empty) return null;
+            return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as any;
+        },
         null,
         `legal page: ${slug}`
     );
 }
 
-/** Fetches all legal pages for admin panel. */
 export async function getAllLegalPages(): Promise<Array<{ id: string; title: string; slug: string; updatedAt: Date }>> {
     return safeQuery(
-        async () => await supabaseAdmin.from("LegalPage").select("*").order("updatedAt", { ascending: false }),
+        async () => {
+            const snapshot = await adminDb.collection("LegalPage").orderBy("updatedAt", "desc").get();
+            return mapQuerySnapshot(snapshot) as any;
+        },
         [],
         "all legal pages"
     );
 }
 
 // ─── Contact Submissions ──────────────────────────────
-/** Fetches all contact submissions, newest first. */
 export async function getContactSubmissions() {
     return safeQuery(
-        async () => await supabaseAdmin.from("ContactSubmission").select("*").order("createdAt", { ascending: false }),
+        async () => {
+            const snapshot = await adminDb.collection("ContactSubmission").orderBy("createdAt", "desc").get();
+            return mapQuerySnapshot(snapshot);
+        },
         [],
         "contact submissions"
     );
 }
 
 // ─── Global Settings ──────────────────────────────────
-/** Fetches all global settings as a key-value record. */
 export async function getSettings(): Promise<Record<string, any>> {
     try {
-        const { data, error } = await supabaseAdmin.from("GlobalSettings").select("*");
-        if (error) throw error;
-
+        const snapshot = await adminDb.collection("GlobalSettings").get();
         const settings: Record<string, any> = {};
-        for (const row of data || []) {
-            settings[row.key] = row.value;
+        for (const doc of snapshot.docs) {
+            settings[doc.id] = doc.data().value;
+            // Or if key was a field: settings[doc.data().key] = doc.data().value;
+            // Assuming the doc ID is the key
+            if (doc.data().key) settings[doc.data().key] = doc.data().value;
         }
         return settings;
     } catch (error) {
@@ -178,12 +253,16 @@ export async function getSettings(): Promise<Record<string, any>> {
     }
 }
 
-/** Fetches a single setting value by key. */
 export async function getSetting(key: string) {
     try {
-        const { data, error } = await supabaseAdmin.from("GlobalSettings").select("value").eq("key", key).single();
-        if (error) throw error;
-        return data?.value ?? null;
+        // Assume key could be the doc id or a field
+        const docRef = await adminDb.collection("GlobalSettings").doc(key).get();
+        if (docRef.exists) return docRef.data()?.value ?? null;
+
+        const snapshot = await adminDb.collection("GlobalSettings").where("key", "==", key).limit(1).get();
+        if (!snapshot.empty) return snapshot.docs[0].data().value;
+
+        return null;
     } catch (error) {
         console.error(`[Data] Failed to fetch setting "${key}":`, error instanceof Error ? error.message : error);
         return null;
@@ -191,98 +270,113 @@ export async function getSetting(key: string) {
 }
 
 // ─── Calculators ──────────────────────────────────────
-/** Fetches all visible calculators ordered by display position. */
 export async function getCalculators() {
     return safeQuery(
-        async () => await supabaseAdmin.from("Calculator").select("*").eq("isVisible", true).order("order"),
+        async () => {
+            const snapshot = await adminDb.collection("Calculator").orderBy("order").get();
+            return mapQuerySnapshot(snapshot).filter((item: any) => item.isVisible !== false);
+        },
         [],
         "calculators"
     );
 }
 
-/** Fetches all calculators (including hidden) for admin panel. */
 export async function getAllCalculators() {
     return safeQuery(
-        async () => await supabaseAdmin.from("Calculator").select("*").order("order"),
+        async () => {
+            const snapshot = await adminDb.collection("Calculator").orderBy("order").get();
+            return mapQuerySnapshot(snapshot);
+        },
         [],
         "all calculators"
     );
 }
 
 // ─── CTA Sections ─────────────────────────────────────
-/** Fetches all visible CTA sections ordered by display position. */
 export async function getCtaSections() {
     return safeQuery(
-        async () => await supabaseAdmin.from("CtaSection").select("*").eq("isVisible", true).order("order"),
+        async () => {
+            const snapshot = await adminDb.collection("CtaSection").orderBy("order").get();
+            return mapQuerySnapshot(snapshot).filter((item: any) => item.isVisible !== false);
+        },
         [],
         "CTA sections"
     );
 }
 
-/** Fetches all CTA sections (including hidden) for admin panel. */
 export async function getAllCtaSections() {
     return safeQuery(
-        async () => await supabaseAdmin.from("CtaSection").select("*").order("order"),
+        async () => {
+            const snapshot = await adminDb.collection("CtaSection").orderBy("order").get();
+            return mapQuerySnapshot(snapshot);
+        },
         [],
         "all CTA sections"
     );
 }
 
 // ─── Chat Sessions ────────────────────────────────────
-/** Fetches recent chat sessions with messages, limited by count. */
 export async function getChatSessions(limit: number = 50) {
     return safeQuery(
-        async () => await supabaseAdmin
-            .from("ChatSession")
-            .select("*, messages:ChatMessage(*)")
-            .order("createdAt", { ascending: false })
-            .limit(limit)
-            .order("createdAt", { foreignTable: "ChatMessage", ascending: true }),
+        async () => {
+            const sessionsSnap = await adminDb.collection("ChatSession").orderBy("createdAt", "desc").limit(limit).get();
+            const sessions = mapQuerySnapshot(sessionsSnap);
+
+            // For each session we'd fetch messages, this might be intensive so we can use a simpler approach or a subcollection
+            for (let session of sessions as any[]) {
+                const messagesSnap = await adminDb.collection(`ChatSession/${session.id}/messages`).orderBy("createdAt", "asc").get();
+                if (!messagesSnap.empty) {
+                    session.messages = mapQuerySnapshot(messagesSnap);
+                } else {
+                    // Try top level ChatMessage collection just in case
+                    const altSnap = await adminDb.collection("ChatMessage").where("sessionId", "==", session.id).get();
+                    session.messages = mapQuerySnapshot(altSnap).sort((a: any, b: any) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+                }
+            }
+            return sessions;
+        },
         [],
         "chat sessions"
     );
 }
 
-/** Fetches a single chat session by ID with all its messages. */
 export async function getChatSessionById(id: string) {
     return safeQuery(
-        async () => await supabaseAdmin
-            .from("ChatSession")
-            .select("*, messages:ChatMessage(*)")
-            .eq("id", id)
-            .order("createdAt", { foreignTable: "ChatMessage", ascending: true })
-            .single(),
+        async () => {
+            const doc = await adminDb.collection("ChatSession").doc(id).get();
+            if (!doc.exists) return null;
+
+            const session = { id: doc.id, ...doc.data() } as any;
+            const messagesSnap = await adminDb.collection("ChatMessage").where("sessionId", "==", id).get();
+            session.messages = mapQuerySnapshot(messagesSnap).sort((a: any, b: any) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+
+            return session;
+        },
         null,
         `chat session: ${id}`
     );
 }
 
 // ─── Dashboard Stats ──────────────────────────────────
-/** Fetches aggregate counts for the admin dashboard. */
 export async function getDashboardStats() {
     const defaultStats = { services: 0, plans: 0, products: 0, gallery: 0, testimonials: 0, contacts: 0, chatSessions: 0, payments: 0 };
     try {
-        const [services, plans, products, gallery, testimonials, contacts, chatSessions, payments] =
-            await Promise.all([
-                supabaseAdmin.from("Service").select("*", { count: "exact", head: true }),
-                supabaseAdmin.from("Plan").select("*", { count: "exact", head: true }),
-                supabaseAdmin.from("Product").select("*", { count: "exact", head: true }),
-                supabaseAdmin.from("GalleryItem").select("*", { count: "exact", head: true }),
-                supabaseAdmin.from("Testimonial").select("*", { count: "exact", head: true }),
-                supabaseAdmin.from("ContactSubmission").select("*", { count: "exact", head: true }),
-                supabaseAdmin.from("ChatSession").select("*", { count: "exact", head: true }),
-                supabaseAdmin.from("Payment").select("*", { count: "exact", head: true }),
-            ]);
+        const collections = ["Service", "Plan", "Product", "GalleryItem", "Testimonial", "ContactSubmission", "ChatSession", "Payment"];
+        const counts = await Promise.all(collections.map(async (col) => {
+            // Note: count() is available in newer firebase-admin sdks
+            const countSnap = await adminDb.collection(col).count().get();
+            return countSnap.data().count;
+        }));
 
         return {
-            services: services.count || 0,
-            plans: plans.count || 0,
-            products: products.count || 0,
-            gallery: gallery.count || 0,
-            testimonials: testimonials.count || 0,
-            contacts: contacts.count || 0,
-            chatSessions: chatSessions.count || 0,
-            payments: payments.count || 0,
+            services: counts[0] || 0,
+            plans: counts[1] || 0,
+            products: counts[2] || 0,
+            gallery: counts[3] || 0,
+            testimonials: counts[4] || 0,
+            contacts: counts[5] || 0,
+            chatSessions: counts[6] || 0,
+            payments: counts[7] || 0,
         };
     } catch (error) {
         console.error("[Data] Failed to fetch dashboard stats:", error instanceof Error ? error.message : error);
@@ -291,19 +385,14 @@ export async function getDashboardStats() {
 }
 
 // ─── Home Page ────────────────────────────────────────
-/** Fetches the singleton home page data, merging with defaults for missing fields. */
 export const getHomePageData = cache(async (): Promise<HomePageData> => {
     try {
-        const { data, error } = await supabaseAdmin
-            .from("HomePage")
-            .select("*")
-            .eq("id", "singleton")
-            .single();
-
-        if (error && error.code !== "PGRST116") { // Ignore "no rows returned" error
-            throw error;
+        const docRef = await adminDb.collection("HomePage").doc("singleton").get();
+        if (!docRef.exists) {
+            return { ...DEFAULT_HOME_DATA, id: "singleton" } as HomePageData;
         }
 
+        const data = docRef.data();
         return {
             ...DEFAULT_HOME_DATA,
             ...data,
