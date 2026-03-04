@@ -49,7 +49,7 @@ export const Invoice = React.forwardRef<HTMLDivElement, InvoiceProps>(
                 {/* Header Sequence */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "48px", borderBottom: "1px solid #e2e8f0", paddingBottom: "32px", paddingTop: "16px" }}>
                     <div>
-                        <h1 style={{ fontSize: "36px", fontWeight: 900, color: "#1B2A4A", margin: 0, letterSpacing: "-1px" }}>Advika Vastu</h1>
+                        <h1 style={{ fontSize: "36px", fontWeight: 900, color: "#1B2A4A", margin: 0, letterSpacing: "-1px" }}>Advika Vastu Structural</h1>
                         <p style={{ fontSize: "12px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: "2px", margin: "4px 0 0 0" }}>
                             Architecture & Structural Design
                         </p>

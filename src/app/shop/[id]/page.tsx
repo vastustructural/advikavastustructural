@@ -2,6 +2,23 @@ import { Suspense } from "react";
 import { getProductById } from "@/lib/data";
 import { notFound } from "next/navigation";
 import ProductDetailClient from "./ProductDetailClient";
+import { Metadata } from "next";
+
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+    const { id } = await params;
+    const product = await getProductById(id);
+    if (!product) return {};
+
+    return {
+        title: `${product.name} | Advika Vastu-Structural`,
+        description: product.description || `Buy ${product.name} from Advika Vastu-Structural`,
+        openGraph: {
+            title: `${product.name} | Advika Vastu-Structural`,
+            description: product.description || `Buy ${product.name} from Advika Vastu-Structural`,
+            images: product.images && product.images.length > 0 ? [{ url: product.images[0] }] : undefined,
+        },
+    };
+}
 
 export default async function ProductDetailPage({
     params

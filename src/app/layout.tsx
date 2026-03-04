@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import PublicLayout from "@/components/layout/PublicLayout";
+import LittleAduChat from '@/components/LittleAduChat';
 
 const inter = Inter({
   variable: "--font-geist-sans",
@@ -10,6 +11,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.SITE_URL || 'https://www.advikavastu.com'),
   title: {
     default: "Advika Vastu-Structural | Architecture, Planning & Vastu Consultancy",
     template: "%s | Advika Vastu-Structural",
@@ -46,6 +48,7 @@ export default function RootLayout({
     <html lang="en" className="scroll-smooth">
       <body className={`${inter.variable} font-sans antialiased`}>
         <PublicLayout>{children}</PublicLayout>
+        <LittleAduChat />
       </body>
     </html>
   );

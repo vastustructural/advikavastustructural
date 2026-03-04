@@ -147,8 +147,8 @@ export default function AdminReferralsPage() {
                                             <div className="text-lg font-bold text-dark-blue">{r.successfulReferrals}</div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
-                                            <div className="font-bold text-sky-primary">₹{(r.successfulReferrals * 500).toLocaleString()}</div>
-                                            <div className="text-[10px] text-muted-foreground">@ ₹500/conversion</div>
+                                            <div className="font-bold text-sky-primary">₹{(r.totalRevenue * 0.10).toLocaleString()}</div>
+                                            <div className="text-[10px] text-muted-foreground">@ 10% commission</div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="font-bold text-green-600">₹{r.totalRevenue.toLocaleString()}</div>

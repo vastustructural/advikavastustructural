@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { Menu, X, Phone, Mail, ChevronRight } from "lucide-react";
+import { Menu, Phone, Mail, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet";
 import { HomePageData } from "@/lib/types/home";
@@ -23,6 +23,11 @@ export default function Header({ homeData }: { homeData?: HomePageData | null })
 
     const email = homeData?.contactEmail || "admin@vastustructural.com";
     const phone = homeData?.contactPhone || "+91 90679 69756";
+    const whatsappNumber = homeData?.whatsappNumber || phone;
+    const whatsappDigits = whatsappNumber.replace(/\D/g, "");
+    const whatsappUrl = whatsappDigits
+        ? `https://wa.me/${whatsappDigits}?text=${encodeURIComponent("Hello, I want to connect with your team.")}`
+        : "/contact";
     const title = homeData?.headerTitle || "Advika Vastu Structural";
     const tagline = homeData?.headerSubtitle || "Architecture | Structural | Vastu";
 
@@ -65,7 +70,9 @@ export default function Header({ homeData }: { homeData?: HomePageData | null })
                             </Link>
                         ))}
                         <Button asChild size="sm" className="ml-2 gold-gradient text-navy-primary font-semibold hover:opacity-90 shadow-sm">
-                            <Link href="/contact">Contact Us <ChevronRight className="w-3.5 h-3.5 ml-1" /></Link>
+                            <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
+                                Connect Now <ChevronRight className="w-3.5 h-3.5 ml-1" />
+                            </a>
                         </Button>
                     </nav>
 
@@ -88,7 +95,7 @@ export default function Header({ homeData }: { homeData?: HomePageData | null })
                                 ))}
                                 <div className="pt-4">
                                     <Button asChild className="w-full gold-gradient text-navy-primary font-semibold" onClick={() => setOpen(false)}>
-                                        <Link href="/contact">Contact Us</Link>
+                                        <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">Connect Now</a>
                                     </Button>
                                 </div>
                             </nav>

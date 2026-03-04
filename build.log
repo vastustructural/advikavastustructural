@@ -1,0 +1,23 @@
+
+> project@0.1.0 build
+> next build
+
+Γû▓ Next.js 16.1.6 (Turbopack)
+- Environments: .env
+
+  Creating an optimized production build ...
+Γ£ô Compiled successfully in 23.0s
+  Running TypeScript ...
+Failed to compile.
+
+./src/app/api/ai-chat/route.ts:49:23
+Type error: Property 'toTextStreamResponse' does not exist on type 'Promise<StreamTextResult<Record<string, CoreTool<any, any>>>>'.
+
+  47 |         });
+  48 |
+> 49 |         return result.toTextStreamResponse();
+     |                       ^
+  50 |     } catch (error) {
+  51 |         console.error('Error in Little Adu AI Chat:', error);
+  52 |         return new Response('Internal Server Error', { status: 500 });
+Next.js build worker exited with code: 1 and signal: null

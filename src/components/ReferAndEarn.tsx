@@ -69,11 +69,11 @@ export default function ReferAndEarn({ open, onOpenChange }: { open: boolean; on
                         <Users size={120} />
                     </div>
                     <DialogHeader className="relative z-10">
-                        <DialogTitle className="text-3xl font-bold mb-2">Refer & Earn ₹500</DialogTitle>
+                        <DialogTitle className="text-3xl font-bold mb-2">Refer & Earn 10% Commission</DialogTitle>
                         <DialogDescription className="text-white/80 text-lg">
                             {referrer
                                 ? "Your unique referral link is ready!"
-                                : "Earn ₹500 for every project closed through your referral. It's that simple!"}
+                                : "Earn 10% commission on the total project value closed through your referral. It's that simple!"}
                         </DialogDescription>
                     </DialogHeader>
                 </div>
@@ -136,7 +136,7 @@ export default function ReferAndEarn({ open, onOpenChange }: { open: boolean; on
                             </div>
 
                             <p className="text-center text-xs text-muted-foreground bg-gray-50 p-3 rounded-lg leading-relaxed">
-                                Share this link with your contacts. When they complete a purchase using your link, we&apos;ll notify you and send your ₹500 reward!
+                                Share this link with your contacts. When they complete a purchase using your link, we&apos;ll notify you and send your 10% reward!
                             </p>
 
                             <Button onClick={() => setReferrer(null)} variant="ghost" className="w-full text-xs text-muted-foreground hover:text-sky-primary">

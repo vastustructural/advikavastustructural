@@ -143,6 +143,10 @@ export default function HomeContent({ services, plans, testimonials, settings, c
         { value: settings.stats_clients || "500+", label: "Happy Clients" },
         { value: settings.stats_states || "25+", label: "States Covered" },
     ];
+    const whatsappDigits = (homeData?.whatsappNumber || homeData?.contactPhone || "").replace(/\D/g, "");
+    const whatsappUrl = whatsappDigits
+        ? `https://wa.me/${whatsappDigits}?text=${encodeURIComponent("Hello, I want to connect with your team.")}`
+        : "/contact";
 
     const cta = ctaSections?.[0];
 
@@ -195,7 +199,9 @@ export default function HomeContent({ services, plans, testimonials, settings, c
                                 <Link href={homeData?.heroButtonLink || "/services"}>{homeData?.heroButtonText || "Explore Services"} <ArrowRight className="w-4 h-4 ml-2" /></Link>
                             </Button>
                             <Button asChild size="lg" variant="outline" className="gold-gradient border-gold-accent/30 text-black hover:bg-white-accent/10 font-semibold px-8">
-                                <Link href="/contact"><Phone className="w-4 h-4 mr-2" /> Contact Us</Link>
+                                <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">
+                                    <Phone className="w-4 h-4 mr-2" /> Connect Now
+                                </a>
                             </Button>
                         </div>
                     </motion.div>

@@ -40,7 +40,7 @@ export default function ReferralSection() {
                                 whileInView={{ opacity: 1, y: 0 }}
                                 className="text-3xl md:text-5xl font-bold text-white leading-tight"
                             >
-                                Refer & Earn <span className="text-gold-accent">₹500</span> Per Project
+                                Refer & Earn <span className="text-gold-accent">10%</span> Commission
                             </motion.h2>
 
                             <motion.p
@@ -89,8 +89,8 @@ export default function ReferralSection() {
                             />
                             <FeatureCard
                                 icon={<Wallet className="w-6 h-6" />}
-                                title="Earn ₹500"
-                                desc="Get paid for every successful project"
+                                title="Earn 10%"
+                                desc="Get paid 10% of the project value"
                             />
                             <FeatureCard
                                 icon={<Gift className="w-6 h-6" />}

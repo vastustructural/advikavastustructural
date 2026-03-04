@@ -1,6 +1,12 @@
 import { Suspense } from "react";
 import { getProducts } from "@/lib/data";
 import ShopContent from "./ShopContent";
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+    title: "Shop | Advika Vastu-Structural",
+    description: "Browse our shop for high-quality architectural and vastu-related products.",
+};
 
 export const dynamic = "force-dynamic";
 
