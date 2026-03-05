@@ -29,13 +29,16 @@ const stagger = {
 };
 
 interface Settings {
-    phone?: string;
-    phone_2?: string;
     email?: string;
-    email_2?: string;
+    phone?: string;
     address?: string;
-    working_hours?: string;
-    working_days_off?: string;
+    workingHours?: string;
+    socialLinks?: {
+        facebook?: string;
+        instagram?: string;
+        twitter?: string;
+        linkedin?: string;
+    };
 }
 
 interface ContactContentProps {
@@ -70,20 +73,19 @@ export default function ContactContent({ settings }: ContactContentProps) {
         setLoading(false);
     };
 
-    const phoneList = [settings.phone, settings.phone_2].filter(Boolean) as string[];
-    const emailList = [settings.email, settings.email_2].filter(Boolean) as string[];
-    const activePhone = phoneList[0] || "+91 90679 69756";
+    const phoneList = settings.phone ? [settings.phone] : [];
+    const emailList = settings.email ? [settings.email] : [];
+    const activePhone = phoneList[0] || "+91 9284242634";
 
     // Fallbacks
-    const fallbackAddress = "Vitthal Complex, Main Raod, Mangrulpir, Washim, Maharashtra - 444403";
-    const fallbackHours = "Mon – Sat: 10:00 AM – 6:00 PM";
-    const fallbackDaysOff = "Sunday: Closed";
+    const fallbackAddress = "Plot No -04, Om Sai Nagar, Besa, / Nagpur - 440027";
+    const fallbackHours = "Monday - Saturday: / 10:00 AM - 6:00 PM";
 
     const contactInfo = [
         {
             icon: Phone,
             title: "Phone",
-            details: phoneList.length > 0 ? phoneList : ["+91 90679 69756"],
+            details: phoneList.length > 0 ? phoneList : ["+91 9284242634"],
             action: `tel:${activePhone.replace(/[^0-9+]/g, '')}`,
         },
         {
@@ -93,18 +95,9 @@ export default function ContactContent({ settings }: ContactContentProps) {
             action: `mailto:${emailList[0] || "admin@advikavastustructural.com"}`,
         },
         {
-            icon: MapPin,
-            title: "Office Location",
-            details: settings.address ? settings.address.split("/ ") : fallbackAddress.split("/ "),
-            action: null,
-        },
-        {
             icon: Clock,
             title: "Working Hours",
-            details: [
-                settings.working_hours || fallbackHours,
-                settings.working_days_off || fallbackDaysOff
-            ],
+            details: settings.workingHours ? settings.workingHours.split("/ ") : fallbackHours.split("/ "),
             action: null,
         },
     ];

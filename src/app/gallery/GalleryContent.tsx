@@ -4,7 +4,7 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ZoomIn, ChevronLeft, ChevronRight } from "lucide-react";
 
 const fadeInUp = { initial: { opacity: 0, y: 30 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.5 } };
@@ -74,6 +74,7 @@ export default function GalleryContent({ items, categories }: { items: GalleryIt
 
                     <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
                         <DialogContent className="max-w-3xl p-0 bg-dark-blue border-none overflow-hidden">
+                            <DialogTitle className="sr-only">Image Lightbox</DialogTitle>
                             {filtered[currentIndex] && (
                                 <div className="relative">
                                     <div className="h-[60vh] flex items-center justify-center bg-gradient-to-br from-sky-primary/10 to-sky-dark/20">

@@ -14,12 +14,13 @@ export default function LittleAduChat() {
     const [chatInput, setChatInput] = useState('');
     const [isSaving, setIsSaving] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
-
+    const [chatSubmitErrorMsg, setChatSubmitErrorMsg] = useState('');
+    const [sessionId, setSessionId] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
-    const { messages, sendMessage, status } = useChat({
+    const { messages, sendMessage, status, error } = useChat({
         transport: new DefaultChatTransport({
-            api: '/api/ai-chat',
+            api: `/api/ai-chat${sessionId ? `?sessionId=${sessionId}` : ''}`,
         }),
     });
     const isLoading = status === 'submitted' || status === 'streaming';
@@ -32,6 +33,18 @@ export default function LittleAduChat() {
 
             return fullText;
         }, '');
+    };
+
+    const getFriendlyChatError = (rawMessage: string) => {
+        if (rawMessage.includes('insufficient_quota') || rawMessage.includes('billing')) {
+            return 'AI service is temporarily unavailable. Please try again shortly.';
+        }
+
+        if (rawMessage.includes('API key') || rawMessage.includes('401')) {
+            return 'AI chatbot is not configured correctly. Please contact support.';
+        }
+
+        return 'Unable to get a response right now. Please try again.';
     };
 
     const scrollToBottom = () => {
@@ -78,6 +91,7 @@ export default function LittleAduChat() {
 
             setIsSaving(false);
             if (response.success) {
+                if (response.id) setSessionId(response.id);
                 setStep('chat');
             } else {
                 setErrorMsg('Something went wrong. Please try again.');
@@ -92,9 +106,21 @@ export default function LittleAduChat() {
             return;
         }
 
-        await sendMessage({ text: trimmedInput });
-        setChatInput('');
+        try {
+            setChatSubmitErrorMsg('');
+            await sendMessage({ text: trimmedInput });
+            setChatInput('');
+        } catch (sendError) {
+            const message = sendError instanceof Error ? sendError.message : String(sendError);
+            setChatSubmitErrorMsg(getFriendlyChatError(message));
+        }
     };
+
+    const chatHookErrorMsg = error
+        ? getFriendlyChatError(error instanceof Error ? error.message : String(error))
+        : '';
+
+    const activeErrorMsg = step === 'chat' ? chatSubmitErrorMsg || chatHookErrorMsg : errorMsg;
 
     return (
         <div className="fixed bottom-6 right-6 z-50">
@@ -225,8 +251,8 @@ export default function LittleAduChat() {
 
                     {/* Footer Input */}
                     <div className="p-3 bg-white border-t border-gray-100">
-                        {errorMsg && (
-                            <p className="text-xs text-red-500 mb-2 px-2 animate-pulse">{errorMsg}</p>
+                        {activeErrorMsg && (
+                            <p className="text-xs text-red-500 mb-2 px-2 animate-pulse">{activeErrorMsg}</p>
                         )}
 
                         {step !== 'chat' ? (

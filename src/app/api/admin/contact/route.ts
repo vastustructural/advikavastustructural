@@ -48,3 +48,22 @@ export async function POST(req: NextRequest) {
         return apiError("Failed to submit contact form");
     }
 }
+
+export async function DELETE(req: NextRequest) {
+    try {
+        const { authorized, errorResponse } = await requireAuth();
+        if (!authorized) return errorResponse;
+
+        const { searchParams } = new URL(req.url);
+        const id = searchParams.get("id");
+
+        if (!id) return apiError("Submission ID is required", 400);
+
+        await adminDb.collection("ContactSubmission").doc(id).delete();
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error("[Contact API] DELETE Error:", error);
+        return apiError("Failed to delete submission");
+    }
+}

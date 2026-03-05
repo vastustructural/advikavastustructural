@@ -32,6 +32,7 @@ interface CalculatorField {
 interface CalculatorType {
     id: string;
     name: string;
+    slug?: string;
     description?: string;
     fields: CalculatorField[];
     formula: string;
@@ -68,13 +69,19 @@ function DynamicCalculator({ calculator }: { calculator: CalculatorType }) {
 
     const calculate = () => {
         try {
-            // Create a safe scoped function from the formula
+            // Execute the formula directly, allowing for full block JS (const x = ...; return y;)
             const vars = Object.keys(values);
             const vals = Object.values(values);
-            const fn = new Function(...vars, `return ${calculator.formula}; `);
+            const fn = new Function(...vars, calculator.formula);
             const res = fn(...vals);
-            setResult(typeof res === "number" ? Math.round(res) : null);
-        } catch {
+
+            if (isNaN(res) || res === null || res === undefined) {
+                setResult(0);
+            } else {
+                setResult(Number(res));
+            }
+        } catch (e) {
+            console.error("Calc error:", e);
             setResult(null);
         }
     };
@@ -132,7 +139,7 @@ function DynamicCalculator({ calculator }: { calculator: CalculatorType }) {
                     </motion.div>
                 )}
             </CardContent>
-        </Card>
+        </Card >
     );
 }
 
@@ -268,24 +275,54 @@ export default function HomeContent({ services, plans, testimonials, settings, c
             {/* ─── REFER & EARN SECTION ─── */}
             <ReferralSection />
 
-            {/* ─── CALCULATORS ─── */}
-            {
-                calculators.length > 0 && (
+
+            {/* ─── QUICK TOOLS TEASER ─── */}
+            {calculators.length > 0 && (() => {
+                // Show only the Construction Cost calculator (first one) on home
+                const featured = calculators.find((c: CalculatorType) => c.slug === "construction-cost") || calculators[0];
+                return (
                     <section className="section-padding bg-white">
                         <div className="container-wide">
-                            <div className="text-center mb-12">
-                                <h2 className="text-3xl md:text-4xl font-bold text-dark-blue mb-4">Quick Calculators</h2>
-                                <p className="text-muted-foreground max-w-2xl mx-auto">Use our interactive tools to estimate costs and evaluate your project requirements.</p>
+                            <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4 mb-10">
+                                <div>
+                                    <h2 className="text-3xl md:text-4xl font-bold text-dark-blue mb-2">Quick Tools</h2>
+                                    <p className="text-muted-foreground max-w-xl">Try our most popular calculator — or explore the full suite of professional planning tools.</p>
+                                </div>
+                                <a href="/tools" className="inline-flex items-center gap-1.5 text-sm font-semibold text-gold-accent hover:underline shrink-0">
+                                    Explore All 9 Tools →
+                                </a>
                             </div>
-                            <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-                                {calculators.map((calc: CalculatorType) => (
-                                    <DynamicCalculator key={calc.id} calculator={calc} />
-                                ))}
+                            <div className="grid md:grid-cols-2 gap-8 items-start max-w-4xl mx-auto">
+                                {/* Best Calculator */}
+                                <DynamicCalculator calculator={featured} />
+
+                                {/* Vastu Checker Teaser Card */}
+                                <div className="border-0 shadow-lg rounded-2xl overflow-hidden bg-gradient-to-br from-teal-600 to-emerald-700 text-white flex flex-col h-full">
+                                    <div className="p-7 flex-1 flex flex-col justify-between">
+                                        <div>
+                                            <div className="w-12 h-12 rounded-2xl bg-white/15 flex items-center justify-center mb-4 text-2xl">🧭</div>
+                                            <h3 className="text-xl font-bold mb-2">Vastu Checker</h3>
+                                            <p className="text-white/75 text-sm leading-relaxed">Check if your home layout — kitchen, bedroom, entrance, and staircase — aligns with Vastu Shastra principles. Get an instant compliance report.</p>
+                                        </div>
+                                        <div className="mt-8 space-y-2">
+                                            {["Main Entrance", "Kitchen Direction", "Master Bedroom", "Toilet & Staircase"].map(l => (
+                                                <div key={l} className="flex items-center gap-2 text-sm text-white/70">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-gold-accent shrink-0" />
+                                                    {l}
+                                                </div>
+                                            ))}
+                                        </div>
+                                        <a href="/tools#vastu" className="mt-6 inline-flex items-center justify-center gap-2 px-5 py-3 rounded-xl bg-white text-teal-700 font-bold text-sm hover:bg-white/90 transition-all shadow-md">
+                                            Check My Vastu →
+                                        </a>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </section>
-                )
-            }
+                );
+            })()}
+
 
             {/* ─── PLANS PREVIEW ─── */}
             <section className="section-padding bg-section-gray">

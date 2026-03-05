@@ -9,23 +9,20 @@ export const metadata: Metadata = {
 
 export const revalidate = 60; // revalidate every 60 seconds
 
-async function getGlobalSettings() {
+async function getContactSettings() {
     try {
-        const snapshot = await adminDb.collection("GlobalSettings").get();
-        const settings: Record<string, any> = {};
-        for (const doc of snapshot.docs) {
-            const data = doc.data();
-            const key = data.key || doc.id;
-            settings[key] = data.value;
+        const doc = await adminDb.collection("AppSettings").doc("contact_settings").get();
+        if (doc.exists) {
+            return doc.data();
         }
-        return settings;
+        return {};
     } catch (error) {
-        console.error("Error fetching settings:", error);
+        console.error("Error fetching contact settings:", error);
         return {};
     }
 }
 
 export default async function ContactPage() {
-    const settings = await getGlobalSettings();
-    return <ContactContent settings={settings} />;
+    const settings = await getContactSettings();
+    return <ContactContent settings={settings as any} />;
 }

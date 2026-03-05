@@ -25,6 +25,9 @@ export default function AdminGalleryPage() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editForm, setEditForm] = useState<Partial<GalleryItem>>({});
     const [uploading, setUploading] = useState(false);
+    const [addingCategory, setAddingCategory] = useState(false);
+    const [newCategoryName, setNewCategoryName] = useState("");
+    const [savingCat, setSavingCat] = useState(false);
 
     async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
         const file = e.target.files?.[0];
@@ -60,6 +63,29 @@ export default function AdminGalleryPage() {
             toast.error("Failed to load gallery data");
         } finally {
             setLoading(false);
+        }
+    }
+
+    async function addCategory() {
+        if (!newCategoryName.trim()) {
+            toast.error("Category name is required");
+            return;
+        }
+        setSavingCat(true);
+        try {
+            const res = await fetch("/api/admin/gallery/categories", {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: newCategoryName.trim() }),
+            });
+            if (!res.ok) throw new Error("Failed to add category");
+            toast.success("Category added successfully");
+            setNewCategoryName("");
+            setAddingCategory(false);
+            await fetchData();
+        } catch (err: any) {
+            toast.error(err.message || "Failed to add category");
+        } finally {
+            setSavingCat(false);
         }
     }
 
@@ -116,7 +142,28 @@ export default function AdminGalleryPage() {
                     <h1 className="text-2xl font-bold text-dark-blue">Gallery Manager</h1>
                     <p className="text-muted-foreground text-sm">Manage your project gallery and portfolio images.</p>
                 </div>
-                <Button onClick={addItem} disabled={saving} className="sky-gradient text-white gap-2"><Plus className="w-4 h-4" /> Add Item</Button>
+                <div className="flex gap-2">
+                    <Dialog open={addingCategory} onOpenChange={setAddingCategory}>
+                        <DialogTrigger asChild>
+                            <Button variant="outline" className="gap-2"><Plus className="w-4 h-4" /> Add Category</Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Add New Category</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 mt-4">
+                                <div>
+                                    <Label>Category Name</Label>
+                                    <Input value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} placeholder="e.g. Interior Design" />
+                                </div>
+                                <Button className="w-full sky-gradient text-white" disabled={savingCat} onClick={addCategory}>
+                                    {savingCat ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null} Save Category
+                                </Button>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+                    <Button onClick={addItem} disabled={saving} className="sky-gradient text-white gap-2"><Plus className="w-4 h-4" /> Add Item</Button>
+                </div>
             </div>
 
             <div className="flex gap-2 flex-wrap">

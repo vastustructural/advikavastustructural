@@ -5,22 +5,23 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 import {
     BarChart3, Home, Wrench, CreditCard, PackageSearch, Image, MessageSquare, Star, FileText, Settings,
-    Calculator, Megaphone, MessageCircle, Menu, X, LogOut, ChevronRight, Users, IndianRupee,
+    Calculator, Megaphone, MessageCircle, Menu, X, LogOut, ChevronRight, Users, IndianRupee, Layout,
 } from "lucide-react";
 
 const navItems = [
     { href: "/admin", label: "Dashboard", icon: BarChart3 },
     { href: "/admin/home", label: "Home", icon: Home },
+    { href: "/admin/popup", label: "Welcome Popup", icon: Layout },
     { href: "/admin/calculators", label: "Calculators", icon: Calculator },
     { href: "/admin/cta", label: "CTA Section", icon: Megaphone },
     { href: "/admin/referrals", label: "Referrals", icon: Users },
     { href: "/admin/payments", label: "Payments", icon: IndianRupee },
-    { href: "/admin/chatbot-logs", label: "Chatbot Logs", icon: MessageCircle },
+    { href: "/admin/chatbot-logs", label: "Chat Leads", icon: MessageCircle },
     { href: "/admin/services", label: "Services", icon: Wrench },
     { href: "/admin/plans", label: "Plans", icon: CreditCard },
     { href: "/admin/products", label: "Products", icon: PackageSearch },
     { href: "/admin/gallery", label: "Gallery", icon: Image },
-    { href: "/admin/testimonials", label: "Testimonials", icon: Star },
+    { href: "/admin/testimonials", label: "Google Reviews", icon: Star },
     { href: "/admin/contact", label: "Contact", icon: MessageSquare },
     { href: "/admin/legal", label: "Legal Pages", icon: FileText },
     { href: "/admin/settings", label: "Settings", icon: Settings },

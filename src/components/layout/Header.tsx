@@ -12,6 +12,7 @@ const navLinks = [
     { href: "/services", label: "Services" },
     { href: "/plans", label: "Plans" },
     { href: "/shop", label: "Shop" },
+    { href: "/tools", label: "Tools" },
     { href: "/gallery", label: "Gallery" },
     { href: "/about", label: "About" },
     { href: "/contact", label: "Contact" },
@@ -20,6 +21,7 @@ const navLinks = [
 export default function Header({ homeData }: { homeData?: HomePageData | null }) {
     const [scrolled, setScrolled] = useState(false);
     const [open, setOpen] = useState(false);
+    const [isMounted, setIsMounted] = useState(false);
 
     const email = homeData?.contactEmail || "admin@vastustructural.com";
     const phone = homeData?.contactPhone || "+91 90679 69756";
@@ -32,6 +34,7 @@ export default function Header({ homeData }: { homeData?: HomePageData | null })
     const tagline = homeData?.headerSubtitle || "Architecture | Structural | Vastu";
 
     useEffect(() => {
+        setIsMounted(true);
         const onScroll = () => setScrolled(window.scrollY > 20);
         window.addEventListener("scroll", onScroll, { passive: true });
         return () => window.removeEventListener("scroll", onScroll);
@@ -77,30 +80,34 @@ export default function Header({ homeData }: { homeData?: HomePageData | null })
                     </nav>
 
                     {/* Mobile Menu */}
-                    <Sheet open={open} onOpenChange={setOpen}>
-                        <SheetTrigger asChild className="lg:hidden">
-                            <Button variant="ghost" size="icon"><Menu className="w-5 h-5" /></Button>
-                        </SheetTrigger>
-                        <SheetContent side="right" className="w-72 p-0">
-                            <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
-                            <div className="brand-gradient p-6">
-                                <span className="text-lg font-bold text-white">{title}</span>
-                                <span className="text-xs text-gold-accent block mt-0.5">{homeData?.headerSubtitle || "SAAS Solutions"}</span>
-                            </div>
-                            <nav className="p-4 space-y-1">
-                                {navLinks.map((link) => (
-                                    <Link key={link.href} href={link.href} onClick={() => setOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-dark-blue hover:bg-cream-bg hover:text-gold-accent transition-all">
-                                        {link.label}
-                                    </Link>
-                                ))}
-                                <div className="pt-4">
-                                    <Button asChild className="w-full gold-gradient text-navy-primary font-semibold" onClick={() => setOpen(false)}>
-                                        <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">Connect Now</a>
-                                    </Button>
+                    {isMounted ? (
+                        <Sheet open={open} onOpenChange={setOpen}>
+                            <SheetTrigger asChild className="lg:hidden">
+                                <Button variant="ghost" size="icon"><Menu className="w-5 h-5" /></Button>
+                            </SheetTrigger>
+                            <SheetContent side="right" className="w-72 p-0">
+                                <SheetTitle className="sr-only">Navigation Menu</SheetTitle>
+                                <div className="brand-gradient p-6">
+                                    <span className="text-lg font-bold text-white">{title}</span>
+                                    <span className="text-xs text-gold-accent block mt-0.5">{homeData?.headerSubtitle || "SAAS Solutions"}</span>
                                 </div>
-                            </nav>
-                        </SheetContent>
-                    </Sheet>
+                                <nav className="p-4 space-y-1">
+                                    {navLinks.map((link) => (
+                                        <Link key={link.href} href={link.href} onClick={() => setOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium text-dark-blue hover:bg-cream-bg hover:text-gold-accent transition-all">
+                                            {link.label}
+                                        </Link>
+                                    ))}
+                                    <div className="pt-4">
+                                        <Button asChild className="w-full gold-gradient text-navy-primary font-semibold" onClick={() => setOpen(false)}>
+                                            <a href={whatsappUrl} target="_blank" rel="noopener noreferrer">Connect Now</a>
+                                        </Button>
+                                    </div>
+                                </nav>
+                            </SheetContent>
+                        </Sheet>
+                    ) : (
+                        <div className="lg:hidden w-10 h-10" />
+                    )}
                 </div>
             </header>
         </>
